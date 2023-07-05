@@ -392,16 +392,8 @@ Label_fileName_Found:
 ;                        AL=待显示的字符
 ;                        BL=前景色
 Label_Go_On_Loading_File:
-    push ax
-    push bx                                                ;                AX BX寄存器在调用中断显示字符中要使用 把这两个寄存器中值是读取扇区数据的参数
+    call Func_PrintChar
 
-    mov ah, 0x0e
-    mov al, '.'
-    mov bl, 0x0f
-    int 0x10                                               ;                中断调用
-
-    pop bx                                                 ;                读取出来的loader.bin程序从0x1000:0x0000=0x10000地址开始往后放
-    pop ax                                                 ;                从哪个扇区开始读
     mov cl, 1                                              ;                准备读1个扇区
     call Func_ReadOneSector
 
@@ -470,11 +462,23 @@ Label_Go_On_Reading:
     ret                                                    ;                退出函数
 
 Label_File_Loaded:
-    jmp $                                ;                TODO loader引导程序
+    jmp BaseOfLoader:OffsetOfLoader                        ;                loader程序已经借助FAT12文件系统读到了内存 下面就是执行这段程序就行
 
-;                                                         扇区填充
-    times 512-2-($-$$) db 0              ;                BIOS加载第一扇区的512Byte内容
-                                         ;                最后2byte分别是 0xaa和0x55
-                                         ;                那么整个第一扇区bootsect程序就是510Byte
-                                         ;                [129...509]被填充0
-    dw 0xaa55                            ;                0xaa和0x55两个标识byte
+; @bref 打印一个字符 用于调试
+Func_PrintChar:
+    push ax
+    push bx
+    mov ah, 0x0e
+    mov al, '.'
+    mov bl, 0x0f
+    int 0x10
+    pop bx
+    pop ax
+    ret
+
+    ;                                                                       扇区填充
+    times 512-2-($-$$) db 0                                ;                BIOS加载第一扇区的512Byte内容
+                                                           ;                最后2byte分别是 0xaa和0x55
+                                                           ;                那么整个第一扇区bootsect程序就是510Byte
+                                                           ;                [129...509]被填充0
+    dw 0xaa55                                              ;                0xaa和0x55两个标识byte
