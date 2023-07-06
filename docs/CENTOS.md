@@ -92,19 +92,19 @@ bochs -f boshsrc
 
 ![Snipaste_2023-07-05_23-19-38](image/Snipaste_2023-07-05_23-19-38.png)
 
-### 2 虚拟软盘
+### 3 虚拟软盘
 
-#### 2.1 创建
+#### 3.1 创建
 
 ![Snipaste_2023-07-05_23-22-59](image/Snipaste_2023-07-05_23-22-59.png)
 
-#### 2.2 验证
+#### 3.2 验证
 
 ![Snipaste_2023-07-05_23-23-56](image/Snipaste_2023-07-05_23-23-56.png)
 
-### 3 程序文件写入磁盘
+### 4 程序文件写入磁盘
 
-#### 3.1 boot引导区程序
+#### 4.1 boot引导区程序
 
 ```shell
 nasm boot.asm -o boot.bin
@@ -114,7 +114,7 @@ dd if=boot.bin of=boot.img bs=512 count=1 conv=notrunc
 
 ![Snipaste_2023-07-05_23-34-19](image/Snipaste_2023-07-05_23-34-19.png)
 
-#### 3.2 loader程序
+#### 4.2 loader程序
 
 ```shell
 mkdir -p /mnt/floppy/
@@ -130,22 +130,22 @@ umount /mnt/floppy/
 
 ![Snipaste_2023-07-06_13-23-46](image/Snipaste_2023-07-06_13-23-46.png)
 
-### 3 宿主机虚拟机文件拷贝
+### 5 宿主机虚拟机文件拷贝
 
-#### 3.1 新建item2的profile
+#### 5.1 新建item2的profile
 
 ![Snipaste_2023-07-06_11-18-41](image/Snipaste_2023-07-06_11-18-41.png)
 
-#### 3.2 虚拟机连接配置
+#### 5.2 虚拟机连接配置
 
 ![Snipaste_2023-07-06_11-21-13](image/Snipaste_2023-07-06_11-21-13.png)
 
-#### 3.3 scp文件传输
+#### 5.3 scp文件传输
 
 防止出现权限问题，虚拟机直接以root用户接收
 
 ![Snipaste_2023-07-06_11-23-21](image/Snipaste_2023-07-06_11-23-21.png)
 
-#### 3.4 ssh登陆
+#### 5.4 ssh登陆
 
 ![Snipaste_2023-07-06_11-26-01](image/Snipaste_2023-07-06_11-26-01.png)
