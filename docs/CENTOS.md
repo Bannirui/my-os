@@ -102,12 +102,50 @@ bochs -f boshsrc
 
 ![Snipaste_2023-07-05_23-23-56](image/Snipaste_2023-07-05_23-23-56.png)
 
-### 3 复制boot程序文件
+### 3 程序文件写入磁盘
 
-### 4 boot程序执行
+#### 3.1 boot引导区程序
 
-### 4 挂载目录
+```shell
+nasm boot.asm -o boot.bin
 
-### 5 复制loader程序文件
+dd if=boot.bin of=boot.img bs=512 count=1 conv=notrunc
+```
 
-### 6 loader程序执行
+![Snipaste_2023-07-05_23-34-19](image/Snipaste_2023-07-05_23-34-19.png)
+
+#### 3.2 loader程序
+
+```shell
+mkdir -p /mnt/floppy/
+
+mount boot.img /mnt/floppy/ -t vfat -o loop
+
+cp loader.bin /mnt/floppy/
+
+sync
+
+umount /mnt/floppy/
+```
+
+![Snipaste_2023-07-06_13-23-46](image/Snipaste_2023-07-06_13-23-46.png)
+
+### 3 宿主机虚拟机文件拷贝
+
+#### 3.1 新建item2的profile
+
+![Snipaste_2023-07-06_11-18-41](image/Snipaste_2023-07-06_11-18-41.png)
+
+#### 3.2 虚拟机连接配置
+
+![Snipaste_2023-07-06_11-21-13](image/Snipaste_2023-07-06_11-21-13.png)
+
+#### 3.3 scp文件传输
+
+防止出现权限问题，虚拟机直接以root用户接收
+
+![Snipaste_2023-07-06_11-23-21](image/Snipaste_2023-07-06_11-23-21.png)
+
+#### 3.4 ssh登陆
+
+![Snipaste_2023-07-06_11-26-01](image/Snipaste_2023-07-06_11-26-01.png)

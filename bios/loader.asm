@@ -11,8 +11,6 @@ org 0x10000
     mov ss, ax
     mov sp, 0x7c00
 
-; 临时变量
-StartLoaderMessage: db "loader running"
 
 ; @bref 利用BIOS中断打印字符串
 ;       屏幕上显示提示信息
@@ -32,17 +30,20 @@ StartLoaderMessage: db "loader running"
 ;                           BL[4...6] 背景颜色 0=黑色 1=蓝色 2=绿色 3=青色 4=红色 5=紫色 6=棕色 7=白色
 ;                           BL[3]     字体亮度 0=字体正常 1=字体高量
 ;                           BL[0...2] 字体颜色 0=黑色 1=蓝色 2=绿色 3=青色 4=红色 5=紫色 6=棕色 7=白色
-Label_Start:
     mov ax, 0x1301
     mov cx, 14
     mov dx, 0x0200
-    mov bx, 0x0000
+    mov bx, 0x000f
     push ax
 
     mov ax, ds
     mov es, ax
+    pop ax
     mov bp, StartLoaderMessage
 
-    pop ax
     int 0x10
+
     jmp $
+
+; 临时变量
+StartLoaderMessage: db "LOADER running"
