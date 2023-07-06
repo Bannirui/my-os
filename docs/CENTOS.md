@@ -144,6 +144,10 @@ umount /mnt/floppy/
 
 防止出现权限问题，虚拟机直接以root用户接收
 
+```shell
+scp local_file remote_username@remote_ip:remote_folder 
+```
+
 ![Snipaste_2023-07-06_11-23-21](image/Snipaste_2023-07-06_11-23-21.png)
 
 #### 5.4 ssh登陆
