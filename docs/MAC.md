@@ -235,7 +235,7 @@ nasm boot.asm -o boot.bin
 引导扇区需要放在bochs安装路径下
 
 ```shell
-cp /Users/dingrui/Dev/code/mine/c/my-os/bios/boot.bin /usr/local/Cellar/bochs/2.7/
+cp /Users/dingrui/Dev/code/mine/c/my-os/boot/boot.bin /usr/local/Cellar/bochs/2.7/
 
 dd if=boot.bin of=boot.img bs=512 count=1 conv=notrunc
 ```
