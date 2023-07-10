@@ -1,13 +1,12 @@
-obj = boot.bin loader.bin
+AS = nasm
+SRC = $(wildcard *.asm)
+OBJS = $(patsubst %.asm, %.bin, $(SRC))
 
-all: $(obj)
+default: $(OBJS)
 
-boot.bin:
-	nasm boot.asm -o boot.bin
-
-loader.bin:
-	nasm loader.asm -o loader.bin
+%.bin: %.asm
+	$(AS) $< -o $@
 
 .PHONY: clean
 clean:
-	-rm $(obj)
+	-rm -f $(OBJS)

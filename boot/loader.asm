@@ -12,7 +12,7 @@ org 0x10000
     mov sp, 0x7c00
 
 
-; @bref 利用BIOS中断打印字符串
+; @brief 利用BIOS中断打印字符串
 ;       屏幕上显示提示信息
 ;       int 0x10 AH=0x13 显示一行字符串
 ;                        AL=写入模式

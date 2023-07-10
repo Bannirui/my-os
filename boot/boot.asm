@@ -16,7 +16,7 @@ OffsetOfLoader          equ 0x0000                         ; loader程序的起�
 SectorNumOfRootDirStart equ 19                             ; 根目录的起始扇区号
 RootDirSectors          equ 14                             ; 根目录占用扇区数 扇区[19...32]
 SectorNumOfFAT1Start    equ 1                              ; FAT1起始扇区号 扇区[1...9]
-ClusMappingSector       equ 31                             ; FAT表中0跟1不可用 也就是说FAT表项从2开始 即簇号下标[2...]映射数据区扇区[33...] 已知簇号=x 则扇区=x-2+33=x+31
+ClusterMappingSector       equ 31                             ; FAT表中0跟1不可用 也就是说FAT表项从2开始 即簇号下标[2...]映射数据区扇区[33...] 已知簇号=x 则扇区=x-2+33=x+31
 
 ;                                                           偏移 长度[字节]                  内容
 
@@ -74,7 +74,7 @@ ClusMappingSector       equ 31                             ; FAT表中0跟1不�
     BS_VolLab       db 'boot loader'                       ; 43    11       卷标 在windows或者linux系统中显示的磁盘名
     BS_FileSysType  db 'FAT12   '                          ; 54    8        文件系统类型
                                                            ; 62   448       引导代码\数据及其他信息
-; @bref 软盘第1扇区中程序boot sector的实现
+; @brief 软盘第1扇区中程序boot sector的实现
 Label_Start:
     mov ax, cs                                             ;                代码段寄存器=0x0000
     mov ds, ax                                             ;                数据段寄存器=0x0000 数据从哪里来
@@ -82,7 +82,7 @@ Label_Start:
     mov ss, ax                                             ;                堆栈段寄存器=0x0000
     mov sp, BaseOfStack                                    ;                栈基=0x7c00
 
-; @bref 中断调用实现清屏功能
+; @brief 中断调用实现清屏功能
 ;       屏幕[(0,0)...(79,24)]这80行25列范围清屏
 ;       int 0x10 AH=0x60 指定范围的窗口滚动
 ;                        AL=滚动的列数 为0则实现清空屏幕功能
@@ -102,7 +102,7 @@ Label_Clear:
     mov dx, 0x184f                                         ;                DH=0x18 DL=0x4f 右下角坐标=[79,24]
     int 0x10                                               ;                中断调用
 
-; @bref 光标重置到[0,0]位置
+; @brief 光标重置到[0,0]位置
 ;       设定光标位置
 ;       中断号int 0x10
 ;       功能号AH=0x02
@@ -115,7 +115,7 @@ Label_Cursor:
     mov bx, 0x0000
     int 0x10
 
-; @bref 屏幕上显示字符串 作为提示boot程序运行提示
+; @brief 屏幕上显示字符串 作为提示boot程序运行提示
 ;       显示一行字符串
 ;       中断号int 0x10
 ;       功能号AH=0x13
@@ -148,7 +148,7 @@ Label_Print_Msg:
 
     int 0x10
 
-; @bref 复位第一个软盘
+; @brief 复位第一个软盘
 ;       重置磁盘驱动器 为下一次的读写软盘做准备
 ;       中断号int 0x13
 ;       功能号AH=0x00
@@ -178,7 +178,7 @@ Label_Reset_Floppy:
 ; 9 以簇号为脚标的数组内容是下一个簇号 循环7和8直到簇号结束0xfff
     mov word[SectorNo], SectorNumOfRootDirStart
 
-; @bref 根目录占14个扇区 轮询根目录中扇区
+; @brief 根目录占14个扇区 轮询根目录中扇区
 ;       从19号扇区开始 每次读1个扇区 内容放到内存0x08000
 Label_Search_In_Root_Dir_Begin:
     cmp word[RootDirSizeForLoop], 0
@@ -198,7 +198,7 @@ Label_Search_In_Root_Dir_Begin:
     cld                                                    ;                让DF标志位=0 下面的lodsb指令依赖DF标志位 因此提前置位
     mov dx, 0x10                                           ;                每个扇区中有16个根目录项
 
-; @bref 解析每个根目录项 是否存在loader.bin文件
+; @brief 解析每个根目录项 是否存在loader.bin文件
 ;       1个扇区16个根目录 即1个扇区轮询检索16次
 ; @param SI=目标文件名 要在根目录项中找的文件名
 ; @param DI=根目录项 前11Byte是候选文件名
@@ -226,7 +226,7 @@ Label_Search_For_LoaderBin:
     dec dx
     mov cx, 11                                             ;                每个根目录项前11个Byte轮询出来跟文件名比较
 
-; @bref 解析1个根目录项中的前11B 文件名占8B 扩展名占3B
+; @brief 解析1个根目录项中的前11B 文件名占8B 扩展名占3B
 ;       考察解析出来的文件名是否是loader.bin程序文件
 Label_Cmp_FileName:
     cmp cx, 0
@@ -242,14 +242,14 @@ Label_Cmp_FileName:
     jz Label_Go_On
     jmp Label_Different
 
-; @bref 目标文件名和候选文件名的某个字符相同 将二者字符指针后移 比较下一个字符
+; @brief 目标文件名和候选文件名的某个字符相同 将二者字符指针后移 比较下一个字符
 ; @parm si 指向目标文件名的字符 lodsb指令会自增si 因此不需要手动后移指针
 ; @param di 指向候选文件名的字符 手动后移指针
 Label_Go_On:
     inc di
     jmp Label_Cmp_FileName
 
-; @bref 当前根目录项中的候选文件名跟目标文件名不匹配
+; @brief 当前根目录项中的候选文件名跟目标文件名不匹配
 ;       FAT12文件系统的标准规定了文件名=8 扩展名=3
 ;       当前函数是比较出来候选文件名的某个字符跟目标文件名不一样了
 ;       也就是说一定是[0...10]这11个字符中某个字符开始不一样 因为si是lodsb负责自增的 那么si会比di靠后一个位置
@@ -289,12 +289,12 @@ Label_Different:
     mov si, LoaderFileName                                 ;                重置SI
     jmp Label_Search_For_LoaderBin
 
-; @bref 根目录当前扇区没找到目标文件名 继续SectorNo的下一个扇区读取 直至读完根目录中14个扇区
+; @brief 根目录当前扇区没找到目标文件名 继续SectorNo的下一个扇区读取 直至读完根目录中14个扇区
 Label_Goto_Next_Sector_In_Root_Dir:
     add word[SectorNo], 1
     jmp Label_Search_In_Root_Dir_Begin
 
-; @bref 没有检索到loader.bin程序文件时给出提示信息
+; @brief 没有检索到loader.bin程序文件时给出提示信息
 ;       搜索整个根目录的14个扇区都没有搜索到loader.bin再执行该函数
 ;       int 0x10 AH=0x13 显示一行字符串
 ;                        AL=写入模式
@@ -325,7 +325,7 @@ Label_No_LoaderBin:
     int 0x10
     jmp $                                                  ;                让cpu陷在这 相当于阻塞线程
 
-; @bref 在根目录项中匹配到了文件名
+; @brief 在根目录项中匹配到了文件名
 ;       从根目录项中读取出目标文件的起始簇号
 ;       解析出簇号映射的扇区号，然后顺着簇号找下一个簇号
 ;
@@ -339,7 +339,7 @@ Label_fileName_Found:
 
     push cx                                                ;                起始簇号 将簇号缓存在栈中 读取完当前簇号内容后 还要根据簇号找到下一个簇号
 
-    add cx, ClusMappingSector                              ;                扇区号=簇号+31
+    add cx, ClusterMappingSector                              ;                扇区号=簇号+31
 
     mov ax, BaseOfLoader
     mov es, ax                                             
@@ -347,7 +347,7 @@ Label_fileName_Found:
 
     mov ax, cx
 
-; @bref 根据文件簇号映射到某个扇区 读取该扇区的数据到内存
+; @brief 根据文件簇号映射到某个扇区 读取该扇区的数据到内存
 ;       在屏幕上显示.标识1个扇区 也就是说文件占用几个扇区 将来在屏幕上就会显示几个点
 ;       int 0x10 AH=0x0e 在屏幕上显示1个字符
 ;                        AL=待显示的字符
@@ -364,15 +364,15 @@ Label_DFS_Load_File:
     jz Label_File_Loaded
 
     push ax                                                ;                当前簇号的下一个簇号入栈 给递归函数的下一层是用 也就是下层递归的当前簇号
-    add ax, ClusMappingSector                              ;                扇区号=簇号+31
+    add ax, ClusterMappingSector                              ;                扇区号=簇号+31
     add bx, [BPB_BytesPerSec]
     jmp Label_DFS_Load_File
 
-; @bref loader程序加载到了内存 让CPU跳转执行loader程序
+; @brief loader程序加载到了内存 让CPU跳转执行loader程序
 Label_File_Loaded:
     jmp BaseOfLoader:OffsetOfLoader                        ;                loader程序已经借助FAT12文件系统读到了内存 下面就是执行这段程序就行
 
-; @bref LBA转换CHS
+; @brief LBA转换CHS
 ;       入参扇区号是LBA格式 依赖中断int 0x13读取扇区功能需要提供的参数是CHS格式 当前要做的就是格式转换
 ; @param AX=扇区号 LBA格式 从磁盘上哪个扇区开始读
 ; @param CL=扇区数 要读几个扇区
@@ -417,7 +417,7 @@ Func_Read_Sector:
     mov dl, [BS_DrvNum]                                    ;                DL=驱动器号
     pop bx                                                 ;                除法计算之前缓存着的BX值 ES:BX=>缓冲区地址 磁盘上读取的数据放到内存上
 
-; @bref int 0x13中断读扇区
+; @brief int 0x13中断读扇区
 ;       中断号int 0x13
 ;       功能号AH=0x02
 ; @param AH=0x02 功能号
@@ -438,7 +438,7 @@ Label_Do_Read_Sector:
     pop bp                                                 ;                恢复中断调用前的BP基地址
     ret                                                    ;                退出函数
 
-; @bref 根据当前FAT表项索引出下一个FAT表项
+; @brief 根据当前FAT表项索引出下一个FAT表项
 ; @param AX FAT表项号 即簇号
 ; @return AX 当前簇号的下一个簇号
 ;       乘法
@@ -486,7 +486,7 @@ Func_GetFATEntry:
     jz Label_Even                                          ;                FAT表脚标相对FAT1的偏移是整数
     mov byte[Odd], 1                                       ;                FAT表脚标相对FAT1的偏移是小数
 
-; @bref FAT表索引相对FAT1偏移量是整数
+; @brief FAT表索引相对FAT1偏移量是整数
 ; @param AX=FAT表项索引相对偏移量
 ;       除法
 ;         被除数     除数     商  余数
@@ -523,7 +523,7 @@ Label_Even_2:
     pop es
     ret
 
-; @bref 打印一个字符 用于调试
+; @brief 打印一个字符 用于调试
 Func_PrintChar:
     push ax
     push bx
