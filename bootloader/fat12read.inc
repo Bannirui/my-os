@@ -1,3 +1,13 @@
+; @brief 为标准软盘构建FAT12文件系统 通过FAT12加载指定文件
+; @param search_file_name 待加载的目标文件名 "文件名 扩展名"
+;                         在FAT12文件系统中文件名和目录项都是大写的 即使复制进来时小写的文件 文件系统也会为其创建大写的方式
+; @param odd              已知FAT表脚标时要读它的表项 标识FAT表相对FAT1的相对偏移是不是整数 Odd=1表示相对偏移是小数 Odd=0表示相对偏移是整数
+; @param sector_no        检索FAT12文件系统中的软盘扇区
+; @param root_dir_loop_sz FAT12根目录检索的次数 即根目录有多少个扇区
+; @param base_of_dest
+; @param offset_of_dest   加载好的文件放置到内存的位置base_of_dest:offset_of_dest
+; @return                 调用方必须实现search_file_name_callback
+
 ; 根目录扇区号范围为[19...32] 一共14个扇区
 ; 1 比如loader程序名叫loader.bin 磁盘文件格式是FAT12 那么该文件在FAT12中的文件名就是LOADER 扩展名是BIN
 ; 2 首先遍历根目录中的根目录项 从根目录项的前11B文件名LOADER和扩展名BIN找到loader程序
@@ -8,24 +18,24 @@
 ; 7 将3解析出来的文件簇号映射生成扇区
 ; 8 拿着扇区号利用中断读取内容放到到内存
 ; 9 以簇号为脚标的数组内容是下一个簇号 循环7和8直到簇号结束0xfff
-mov word[SectorNo], SectorNumOfRootDirStart
+    mov word[sector_no], SectorNumOfRootDirStart
 
 ; @brief 根目录占14个扇区 轮询根目录中扇区
 ;       从19号扇区开始 每次读1个扇区 内容放到内存0x08000
-Label_Search_In_Root_Dir_Begin:
-    cmp word[RootDirSizeForLoop], 0
-    jz Label_No_LoaderBin                                  ;                整个根目录中的14个扇区都遍历过了 没有找到loader程序 用于退出轮询
-    dec word[RootDirSizeForLoop]
+label_search_from_root_dir:
+    cmp word[root_dir_loop_sz], 0
+    jz label_not_found                                     ;                整个根目录中的14个扇区都遍历过了 没有找到loader程序 用于退出轮询
+    dec word[root_dir_loop_sz]
 
     mov ax, 0x0000
     mov es, ax
     mov bx, 0x8000                                         ;                ES:BX=0x08000 缓冲区地址
 
-    mov ax, [SectorNo]
+    mov ax, [sector_no]
     mov cl, 1
-    call Func_Read_Sector                                  ;                扇区[19...32]当前读Sector扇区
+    call func_read_sector                                  ;                扇区[19...32]当前读Sector扇区
 
-    mov si, LoaderFileName                                 ;                loader.bin文件名 相当于源地址 后面要使用lodsb将这个内存上的文件名读取到寄存器中跟目的地址内容去比较
+    mov si, search_file_name                               ;                loader.bin文件名 相当于源地址 后面要使用lodsb将这个内存上的文件名读取到寄存器中跟目的地址内容去比较
     mov di, 0x8000                                         ;                内存缓冲区 存储着从根目录中读取出来的扇区内容 可以从中解析出文件名 相当于目的地址
     cld                                                    ;                让DF标志位=0 下面的lodsb指令依赖DF标志位 因此提前置位
     mov dx, 0x10                                           ;                每个扇区中有16个根目录项
@@ -52,17 +62,17 @@ Label_Search_In_Root_Dir_Begin:
 ;       [0x081a0] [根目录项13] [0x081bf]    [0x081a0...0x081a9]
 ;       [0x081c0] [根目录项14] [0x081df]    [0x081c0...0x081c9]
 ;       [0x081e0] [根目录项15] [0x081ff]    [0x081e0...0x081e9]
-Label_Search_For_LoaderBin:
+label_parse_from_root_dir_item:
     cmp dx, 0                                              ;                轮询16个根目录项
-    jz Label_Goto_Next_Sector_In_Root_Dir                  ;                在1个扇区之中有16个根目录项 轮询没有找到loader文件 继续检索根目录中的下一扇区
+    jz label_next_sector_of_root_dir                       ;                在1个扇区之中有16个根目录项 轮询没有找到loader文件 继续检索根目录中的下一扇区
     dec dx
     mov cx, 11                                             ;                每个根目录项前11个Byte轮询出来跟文件名比较
 
 ; @brief 解析1个根目录项中的前11B 文件名占8B 扩展名占3B
 ;       考察解析出来的文件名是否是loader.bin程序文件
-Label_Cmp_FileName:
+label_cmp_file_name:
     cmp cx, 0
-    jz Label_fileName_Found                                ;                根目录项中前11个Byte的文件名就是要找的文件名 当前DI指向的根目录项就要要找的
+    jz label_file_found                                    ;                根目录项中前11个Byte的文件名就是要找的文件名 当前DI指向的根目录项就要要找的
     dec cx
 
     ; lodsb根据SI从DS:SI内存上将候选文件名的1个Byte读到AL寄存器上 读完了就会自增SI
@@ -71,15 +81,15 @@ Label_Cmp_FileName:
     ; 当前字符不同就找到下一个根目录项中的候选文件名继续重复比较动作
     lodsb
     cmp al, byte[es:di]
-    jz Label_Go_On
-    jmp Label_Different
+    jz label_next_char
+    jmp label_file_name_diff
 
 ; @brief 目标文件名和候选文件名的某个字符相同 将二者字符指针后移 比较下一个字符
 ; @parm si 指向目标文件名的字符 lodsb指令会自增si 因此不需要手动后移指针
 ; @param di 指向候选文件名的字符 手动后移指针
-Label_Go_On:
+label_next_char:
     inc di
-    jmp Label_Cmp_FileName
+    jmp label_cmp_file_name
 
 ; @brief 当前根目录项中的候选文件名跟目标文件名不匹配
 ;       FAT12文件系统的标准规定了文件名=8 扩展名=3
@@ -114,20 +124,20 @@ Label_Go_On:
 ;       因此只要把di的后4bit置为0就回到了首地址
 ;       每个根目录项占32B 也就是每2个根目录项首地址间隔0x20
 ;       再将回到了当前根目录项的首地址+0x20就指向了下一个根目录项的首地址
-Label_Different:
+label_file_name_diff:
     and di, 0xfff0
     add di, 0x20                                           ;                重置DI=DI指向到当前根目录项头->DI指向下一个根目录项
 
-    mov si, LoaderFileName                                 ;                重置SI
-    jmp Label_Search_For_LoaderBin
+    mov si, search_file_name                               ;                重置SI
+    jmp label_parse_from_root_dir_item
 
-; @brief 根目录当前扇区没找到目标文件名 继续SectorNo的下一个扇区读取 直至读完根目录中14个扇区
-Label_Goto_Next_Sector_In_Root_Dir:
-    add word[SectorNo], 1
-    jmp Label_Search_In_Root_Dir_Begin
+; @brief 根目录当前扇区没找到目标文件名 继续sector_no的下一个扇区读取 直至读完根目录中14个扇区
+label_next_sector_of_root_dir:
+    add word[sector_no], 1
+    jmp label_search_from_root_dir
 
-; @brief 没有检索到loader.bin程序文件时给出提示信息
-;       搜索整个根目录的14个扇区都没有搜索到loader.bin再执行该函数
+; @brief 没有检索到文件时给出提示信息
+;       搜索整个根目录的14个扇区都没有搜索到文件再执行该函数
 ;       int 0x10 AH=0x13 显示一行字符串
 ;                        AL=写入模式
 ;                           Al=0x00 字符串属性由BL寄存器控制 字符串长度由CX寄存器控制(以Byte为单位) 光标位置不变(即写入前光标在哪写入后还在哪)
@@ -144,16 +154,16 @@ Label_Goto_Next_Sector_In_Root_Dir:
 ;                           BL[4...6] 背景颜色 0=黑色 1=蓝色 2=绿色 3=青色 4=红色 5=紫色 6=棕色 7=白色
 ;                           BL[3]     字体亮度 0=字体正常 1=字体高量
 ;                           BL[0...2] 字体颜色 0=黑色 1=蓝色 2=绿色 3=青色 4=红色 5=紫色 6=棕色 7=白色
-Label_No_LoaderBin:
+label_not_found:
     mov ax, 0x1301
     mov bx, 0x008c
-    mov dx, 0x0100
-    mov cx, 21
+    mov dx, 0x0400
+    mov cx, 19
     push ax
     mov ax, ds
     mov es, ax
     pop ax
-    mov bp, NoLoaderMessage
+    mov bp, msg_for_no_found
     int 0x10
     jmp $                                                  ;                让cpu陷在这 相当于阻塞线程
 
@@ -164,18 +174,18 @@ Label_No_LoaderBin:
 ;           bit位     [0...7] [8...10]   11   [12...21]    [22...23]      [24...25]    [26...27]  [28...31]
 ;       根目录项组成部分  文件名   扩展名  文件属性   保留位    最后一次写入时间  最后一次写入日期   起始簇号    文件大小
 ;           长度         8        3       1       10            2              2            2          4
-Label_fileName_Found:
+label_file_found:
     and di, 0xfff0                                         ;                当前是根目录项中的文件名是匹配成功的 那么地址偏移是11 地址后4bit的表达区间是[0...15] 把后4位置0就是当前根目录项的首地址
     add di, 0x001a                                         ;                当前偏移0 重置到26偏移 [26...27]记录着起始簇号
     mov cx, word[es:di]                                    ;                文件对应的起始簇号读取出来
 
     push cx                                                ;                起始簇号 将簇号缓存在栈中 读取完当前簇号内容后 还要根据簇号找到下一个簇号
 
-    add cx, ClusterMappingSector                              ;                扇区号=簇号+31
+    add cx, ClusterMappingSector                           ;                扇区号=簇号+31
 
-    mov ax, BaseOfLoader
+    mov ax, base_of_dest
     mov es, ax
-    mov bx, OffsetOfLoader                                 ;                读取出来的loader.bin程序从0x1000:0x0000=0x10000地址开始往后放
+    mov bx, offset_of_dest                                 ;                读取出来的loader.bin程序从base_of_dest:offset_of_dest地址开始往后放
 
     mov ax, cx
 
@@ -184,25 +194,25 @@ Label_fileName_Found:
 ;       int 0x10 AH=0x0e 在屏幕上显示1个字符
 ;                        AL=待显示的字符
 ;                        BL=前景色
-Label_DFS_Load_File:
-    call Func_PrintChar
+label_dfs_load_for_file:
+    call func_print_char
 
     mov cl, 1                                              ;                准备读1个扇区
-    call Func_Read_Sector
+    call func_read_sector
 
     pop ax
-    call Func_GetFATEntry                                  ;                AX中存储簇号 当前簇号的下一个簇号 一直递归读取到结束符
+    call func_next_entry                                   ;                AX中存储簇号 当前簇号的下一个簇号 一直递归读取到结束符
     cmp ax, 0x0fff                                         ;                12bit 0xfff标识结尾 也就意味着根据某个簇号找到的下一个簇号是0xfff就说明整个文件内容都读完了
-    jz Label_File_Loaded
+    jz label_load_succ
 
     push ax                                                ;                当前簇号的下一个簇号入栈 给递归函数的下一层是用 也就是下层递归的当前簇号
-    add ax, ClusterMappingSector                              ;                扇区号=簇号+31
+    add ax, ClusterMappingSector                           ;                扇区号=簇号+31
     add bx, [BPB_BytesPerSec]
-    jmp Label_DFS_Load_File
+    jmp label_dfs_load_for_file
 
 ; @brief loader程序加载到了内存 让CPU跳转执行loader程序
-Label_File_Loaded:
-    jmp BaseOfLoader:OffsetOfLoader                        ;                loader程序已经借助FAT12文件系统读到了内存 下面就是执行这段程序就行
+label_load_succ:
+    jmp search_file_name_callback                          ;                让调用方决定加载完成之后的动作
 
 ; @brief LBA转换CHS
 ;       入参扇区号是LBA格式 依赖中断int 0x13读取扇区功能需要提供的参数是CHS格式 当前要做的就是格式转换
@@ -228,7 +238,7 @@ Label_File_Loaded:
 ;                          DH=磁头号
 ;                          DL=驱动器号 如果操作的是硬盘驱动器则DL[7]必须被置位
 ;                          ES:BX=>数据缓冲区
-Func_Read_Sector:
+func_read_sector:
     push bp                                                ;                函数调用方BP指针
     mov bp, sp                                             ;                当前函数BP指针 相当于在栈中为当前函数开辟栈帧 这两步是为了函数调用结束能恢复调用方
 
@@ -260,11 +270,11 @@ Func_Read_Sector:
 ; @param DL=驱动器
 ; @param ES:BX=缓冲区地址
 ; @return CF=0标识操作成功
-Label_Do_Read_Sector:
+label_do_read_sector:
     mov ah, 0x02
     mov al, byte[bp-2]                                     ;                栈中参数(扇区数)
     int 0x13
-    jc Label_Do_Read_Sector                                ;                PSW标志位(CF标志位) 中断读扇区成功后会将CF为置0 如果没有被置0说明扇区读取失败 进行重试
+    jc label_do_read_sector                                ;                PSW标志位(CF标志位) 中断读扇区成功后会将CF为置0 如果没有被置0说明扇区读取失败 进行重试
 
     add esp, 2                                             ;                执行到这说明扇区中的数据已经被读到了内存 清理栈中缓存的参数(扇区数)
     pop bp                                                 ;                恢复中断调用前的BP基地址
@@ -299,7 +309,7 @@ Label_Do_Read_Sector:
 ;        FAT1的扇区范围是[1...9]
 ;        每个扇区的大小=512B
 ;        知道了offset也就自然能知道簇号表项在哪个扇区上 其次就是在该扇区定位到准确位置
-Func_GetFATEntry:
+func_next_entry:
     push es
     push bx
     push ax                                                ;                缓存乘数 簇号
@@ -308,15 +318,15 @@ Func_GetFATEntry:
     mov es, ax
 
     pop ax                                                 ;                乘数 簇号
-    mov byte[Odd], 0
+    mov byte[odd], 0
     mov bx, 3
     mul bx
     mov bx, 2
     div bx
 
     cmp dx, 0                                              ;                簇号*12/8的结果 AX=FAT表索引相对FAT1偏移量(向下取整) DX=0表示AX是整数结果 DX=1表示AX是小数取整结果
-    jz Label_Even                                          ;                FAT表脚标相对FAT1的偏移是整数
-    mov byte[Odd], 1                                       ;                FAT表脚标相对FAT1的偏移是小数
+    jz label_even                                          ;                FAT表脚标相对FAT1的偏移是整数
+    mov byte[odd], 1                                       ;                FAT表脚标相对FAT1的偏移是小数
 
 ; @brief FAT表索引相对FAT1偏移量是整数
 ; @param AX=FAT表项索引相对偏移量
@@ -331,7 +341,7 @@ Func_GetFATEntry:
 ;                      相对扇区偏移=x%512
 ;       可能存在一个FAT表项跨扇区情况 比如簇号相对FAT1偏移为511B 那么这12bit就垮了扇区1和扇区2
 ;       在读盘的时候直接一次性读2个扇区
-Label_Even:
+label_even:
     xor dx, dx                                             ;                DX=0
     mov bx, [BPB_BytesPerSec]
     div bx
@@ -340,17 +350,32 @@ Label_Even:
     mov bx, 0x8000
     add ax, SectorNumOfFAT1Start                           ;                定位到扇区
     mov cl, 2
-    call Func_Read_Sector                                  ;                FAT1扇区号为[1...9] 因此从扇区1开始读 读2个扇区 将读取出来的数据放到缓冲区ES:BX
+    call func_read_sector                                  ;                FAT1扇区号为[1...9] 因此从扇区1开始读 读2个扇区 将读取出来的数据放到缓冲区ES:BX
 
     pop dx
     add bx, dx
     mov ax, [es:bx]                                        ;                DX=扇区相对偏移 缓冲区起始地址=0x08000 那么要找的FAT表项绝对地址=0x08000+扇区相对偏移 将表项读出来 寄存器是16位 实际表项内容是12位
-    cmp byte[Odd], 1
-    jnz Label_Even_2                                       ;                相对偏移量是整数
+    cmp byte[odd], 1
+    jnz label_even_2                                       ;                相对偏移量是整数
     shr ax, 4                                              ;                相对偏移量是小数 比如相对偏移是1.5Byte 现在定位到扇区号为1
 
-Label_Even_2:
+label_even_2:
     and ax, 0x0fff                                         ;                FAT表项中12bit的内容 就是当前簇的下一个簇
     pop bx
     pop es
     ret
+
+; @brief 打印一个字符 用于调试
+func_print_char:
+    push ax
+    push bx
+    mov ah, 0x0e
+    mov al, '.'
+    mov bl, 0x0f
+    int 0x10
+    pop bx
+    pop ax
+    ret
+
+    ; 没有找到指定的文件
+    msg_for_no_found:   db "ERROR:No File Found",0
