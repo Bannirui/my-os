@@ -2,78 +2,24 @@
 ; boot sector是第一批 由BIOS负责加载
 ; 第二批第三批由boot sector负责
 
-    org 0x7c00 ; boot程序是放在软盘第一扇区的第一批程序
-               ; 执行的时机是BIOS加载完该段程序后放到0x07c00地址上 并转移CPU执行权 即跳转到0x07c00这个地址进行执行
-               ; 当前CPU是实模式 CPU中CS=0x0000 IP=0x7c00
-               ; 因此该程序刚接收到CPU的执行权
-               ; 告诉编译器程序的起始地址是0x07c00
+; boot程序是放在软盘第一扇区的第一批程序
+; 执行的时机是BIOS加载完该段程序后放到0x07c00地址上 并转移CPU执行权 即跳转到0x07c00这个地址进行执行
+; 当前CPU是实模式 CPU中CS=0x0000 IP=0x7c00
+; 因此该程序刚接收到CPU的执行权
+; 告诉编译器程序的起始地址是0x07c00
+org 0x7c00
 
 BaseOfStack             equ 0x7c00                         ; boot sector程序运行时的段内偏移 也就是程序地址的offset
 
 BaseOfLoader            equ 0x1000
 OffsetOfLoader          equ 0x0000                         ; loader程序的起始地址=0x10000<<4+0x0000=0x10000
 
-SectorNumOfRootDirStart equ 19                             ; 根目录的起始扇区号
-RootDirSectors          equ 14                             ; 根目录占用扇区数 扇区[19...32]
-SectorNumOfFAT1Start    equ 1                              ; FAT1起始扇区号 扇区[1...9]
-ClusterMappingSector       equ 31                             ; FAT表中0跟1不可用 也就是说FAT表项从2开始 即簇号下标[2...]映射数据区扇区[33...] 已知簇号=x 则扇区=x-2+33=x+31
-
 ;                                                           偏移 长度[字节]                  内容
-
-    jmp short Label_Start                                  ; 0     2
-    nop                                                    ; 2     1        指令填充
-
-; 1.44M的标准软盘 2880个分区 每个分区512B 大小=2880*512=1474560Byte=1440KB
-
-; FAT12文件系统
-; 为了加载loader程序和内核程序 需要一个文件系统
-; 将软盘格式化成FAT12文件系统 FAT12文件系统会对软盘扇区进行结构化管理 将扇区划分为4个部分
-; 1 引导扇区
-; 2 FAT表    FAT12文件系统的FAT表中表项宽度是12bit
-; 3 根目录区
-; 4 数据区
-;
-; 组成部分 [Boot Sector] [ FAT tables ] [Root Directory] [Data Area]
-;                         FAT1  FAT2
-; 扇区号        0        1...9 10...18      19...32       33...2879
-;
-; FAT1表占9个扇区 总大小=4608Byte
-; 每个簇占12bit 则FAT1表中共3072个簇 数据区共计2847个扇区 每个簇映射一个扇区 足可以保证访问所有的数据区
-; 并且每个簇12个bit 数据范围=[0...4096] 可以保证簇能够访问到FAT表中每个簇
-; 每12bit为1个簇 FAT1被划分为一个数组 共3072个数据项 数组脚标=[0...3071] 每个数组元素都是12bit 代表的是下一个指向的簇脚标
-; 簇脚标0和簇脚标1不可用
-; 簇值=0xfff标识结尾
-;
-; 根目录区占14个扇区 [19...32]
-; 每个根目录项占32B
-; 根目录区中每个扇区可容纳512/32=16个根目录项
-; 
-;     bit位     [0...7] [8...10]   11   [12...21]    [22...23]      [24...25]    [26...27]  [28...31]
-; 根目录项组成部分  文件名   扩展名  文件属性   保留位    最后一次写入时间  最后一次写入日期   起始簇号    文件大小
-;     长度         8        3       1       10            2              2            2          4
-
-    ; 引导扇区 FAT12文件系统的引导扇区包含引导程序和FAT12文件系统的整个组成构成信息
-    ; 内存中定义变量 描述FAT12文件系统的构成信息
-    BS_OEMName      db 'MY-BOOT '                          ; 3     8        生产厂商名
-    BPB_BytesPerSec dw 512                                 ; 11    2        每扇区字节数
-    BPB_SecPerClus  db 1                                   ; 13    1        每簇扇区数 由于每个扇区的容量只有512B 过小的扇区容量可能会导致软盘读写次数过于频繁 从而引入簇的概念 簇将2的整数次方个扇区作为一个数据存储单元 也就是说簇是FAT类文件系统的最小数据存储单位
-    BPB_RsvdSecCnt  dw 1                                   ; 14    2        保留扇区数 不能是0 保留扇区起始于FAT12文件系统的第一个扇区 对于FAT12而言此位必须为1 也就意味着引导扇区包含在保留扇区内 所以FAT表从软盘的第二个扇区开始
-    BPB_NumFATs     db 2                                   ; 16    1        FAT表的份数 指定FAT12文件系统中FAT表的份数 任何FAT类文件系统都建议将该值置为2 FAT表2是FAT表1的备份 因此FAT1和FAT2的数据是一样的
-    BPB_RootEntCnt  dw 224                                 ; 17    2        根目录可容纳的目录项数 对于FAT12文件系统而言 整个值*32必须是BPB_BytesPerSec的偶数倍 224*32=7168=512*14
-    BPB_TotSec16    dw 2880                                ; 19    2        总扇区数 如果这个值是0 那么BPB_TotSec32就必须得是非0
-    BPB_Media       db 0xf0                                ; 21    1        介质描述符 对于不可移动的存储介质而言标准值是0xf8 对于可移动存储介质常用值是0xf0
-    BPB_FATSz16     dw 9                                   ; 22    2        每FAT扇区数 记录着每个FAT表占用多少个扇区 FAT表1和FAT表2拥有相同容量 
-    BPB_SecPerTrk   dw 18                                  ; 24    2        每磁道扇区数
-    BPB_NumHeadds   dw 2                                   ; 26    2        磁头数
-    BPB_HiddSec     dd 0                                   ; 28    4        隐藏扇区数
-    BPB_TotSec32    dd 0                                   ; 32    4        如果上面BPB_TotSec16为0就用这个值记录扇区数
-    BS_DrvNum       db 0                                   ; 36    1        驱动器号 int 0x13系统调用读取磁盘扇区内容时要用到这个参数
-    BS_Reserved1    db 0                                   ; 37    1        未使用
-    BS_BootSig      db 0x29                                ; 38    1        扩展引导标记
-    BS_VolID        dd 0                                   ; 39    4        卷序列号
-    BS_VolLab       db 'boot loader'                       ; 43    11       卷标 在windows或者linux系统中显示的磁盘名
-    BS_FileSysType  db 'FAT12   '                          ; 54    8        文件系统类型
+jmp short Label_Start                                      ; 0     2
+nop                                                        ; 2     1        指令填充
+%include "fat12.inc"                                       ; 3     59       FAT12文件系统构成
                                                            ; 62   448       引导代码\数据及其他信息
+
 ; @brief 软盘第1扇区中程序boot sector的实现
 Label_Start:
     mov ax, cs                                             ;                代码段寄存器=0x0000
