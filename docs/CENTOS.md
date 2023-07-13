@@ -53,11 +53,11 @@ make && make install
 vim boshsrc
 ```
 
-
+涉及到的路径，最好写绝对路径，因为可能通过make或者shell脚本方式执行，相对路径可能会导致找不到对应的执行文件。
 
 ```shell
 boot: floppy
-floppya: 1_44="boot.img", status=inserted
+floppya: 1_44="/home/dingrui/Dev/bootloader/boot.img", status=inserted
 floppy_bootsig_check: disabled=0
 
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
@@ -79,7 +79,7 @@ debug: action=ignore, pci=report # report BX_DEBUG from module 'pci'
 
 debugger_log: -
 
-parport1: enabled=1, file="parport.out"
+parport1: enabled=1, file="/home/dingrui/Apps/bochs-2.6.8/parport.out"
 
 speaker: enabled=1, mode=sound, volume=15
 ```
@@ -145,6 +145,8 @@ umount /mnt/floppy/
 防止出现权限问题，虚拟机直接以root用户接收
 
 ```shell
+scp -r local_older remote_username@remote_ip:remote_folder 
+
 scp local_file remote_username@remote_ip:remote_folder 
 ```
 
@@ -152,4 +154,21 @@ scp local_file remote_username@remote_ip:remote_folder
 
 #### 5.4 ssh登陆
 
-![Snipaste_2023-07-06_11-26-01](image/Snipaste_2023-07-06_11-26-01.png)
+![](image/Snipaste_2023-07-06_11-26-01.png)
+
+### 6 开发调试
+
+#### 6.1 宿主机开发
+
+#### 6.2 源码上传虚拟机
+
+![](image/image-20230713170951526.png)
+
+#### 6.3 虚拟机调试
+
+执行make程序，注意点有2个
+
+* bochs程序有gui依赖，只能使用虚拟机终端，使用ssh的时候会报没有gui依赖的错误
+* make程序交互创建软盘镜像的时候指定的名字一定要和makefile中以及boshsrc中的一致
+
+![](image/image-20230713171400281.png)

@@ -9,7 +9,7 @@
 ; 告诉编译器程序的起始地址是0x07c00
 org 0x7c00
 
-base_of_stack             equ 0x7c00                       ;                boot sector程序运行时的段内偏移 也就是程序地址的offset
+base_of_stack             equ 0x07c00                      ;                boot sector程序运行时的段内偏移 也就是程序地址的offset
 
 base_of_dest            equ 0x1000
 offset_of_dest          equ 0x0000                         ;                地址=0x10000<<4+0x0000=0x10000
