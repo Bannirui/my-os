@@ -162,9 +162,13 @@ scp local_file remote_username@remote_ip:remote_folder
 
 #### 6.2 源码上传虚拟机
 
-![](image/image-20230713170951526.png)
+规划的是c程序和asm程序不组织在一个文件夹，因此将整个工程上传。
+
+![](image/image-20230714104128436.png)
 
 #### 6.3 虚拟机调试
+
+进入到项目根目录下的bootloader文件夹，里面有makefile。
 
 执行make程序，注意点有2个
 

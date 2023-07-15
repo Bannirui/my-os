@@ -27,14 +27,13 @@
 ; 根目录项组成部分  文件名   扩展名  文件属性   保留位    最后一次写入时间  最后一次写入日期   起始簇号    文件大小
 ;     长度         8        3       1       10            2              2            2          4
 
-    ; 引导扇区 FAT12文件系统的引导扇区包含引导程序和FAT12文件系统的整个组成构成信息
-    ; 内存中定义变量 描述FAT12文件系统的构成信息
+; 引导扇区 FAT12文件系统的引导扇区包含引导程序和FAT12文件系统的整个组成构成信息
 
 ; FAT12文件系统实现中依赖的临时变量
-SectorNumOfRootDirStart equ 19                             ; 根目录的起始扇区号
-RootDirSectors          equ 14                             ; 根目录占用扇区数 扇区[19...32]
-SectorNumOfFAT1Start    equ 1                              ; FAT1起始扇区号 扇区[1...9]
-ClusterMappingSector    equ 31                             ; FAT表中0跟1不可用 也就是说FAT表项从2开始 即簇号下标[2...]映射数据区扇区[33...] 已知簇号=x 则扇区=x-2+33=x+31
+root_dir_sector_begin   equ 19                             ; 根目录的起始扇区号
+root_dir_sector_cnt     equ 14                             ; 根目录占用扇区数 扇区[19...32]
+fat1_sector_begin       equ 1                              ; FAT1起始扇区号 扇区[1...9]
+cluster_map_sector      equ 31                             ; FAT表中0跟1不可用 也就是说FAT表项从2开始 即簇号下标[2...]映射数据区扇区[33...] 已知簇号=x 则扇区=x-2+33=x+31
 
 ;                                                           偏移 长度[字节]                  内容
     BS_OEMName      db 'MY-BOOT '                          ; 3     8        生产厂商名
