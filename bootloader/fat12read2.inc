@@ -1,24 +1,21 @@
-; @brief 根据文件簇号映射到某个扇区 读取该扇区的数据到内存
-;       在屏幕上显示.标识1个扇区 也就是说文件占用几个扇区 将来在屏幕上就会显示几个点
-;       int 0x10 AH=0x0e 在屏幕上显示1个字符
-;                        AL=待显示的字符
-;                        BL=前景色
-.dfs_load_for_file:
-    call func_print_char
+; @brief 在根目录项中匹配到了文件名
+;       从根目录项中读取出目标文件的起始簇号
+;       解析出簇号映射的扇区号，然后顺着簇号找下一个簇号
+;
+;           bit位     [0...7] [8...10]   11   [12...21]    [22...23]      [24...25]    [26...27]  [28...31]
+;       根目录项组成部分  文件名   扩展名  文件属性   保留位    最后一次写入时间  最后一次写入日期   起始簇号    文件大小
+;           长度         8        3       1       10            2              2            2          4
+.file_found:
+    and di, 0xfff0                                         ;                当前是根目录项中的文件名是匹配成功的 那么地址偏移是11 地址后4bit的表达区间是[0...15] 把后4位置0就是当前根目录项的首地址
+    add di, 0x001a                                         ;                当前偏移0 重置到26偏移 [26...27]记录着起始簇号
+    mov cx, word[es:di]                                    ;                文件对应的起始簇号读取出来
 
-    mov cl, 1                                              ;                准备读1个扇区
-    call func_read_sector
+    push cx                                                ;                起始簇号 将簇号缓存在栈中 读取完当前簇号内容后 还要根据簇号找到下一个簇号
 
-    pop ax
-    call func_next_entry                                   ;                AX中存储簇号 当前簇号的下一个簇号 一直递归读取到结束符
-    cmp ax, 0x0fff                                         ;                12bit 0xfff标识结尾 也就意味着根据某个簇号找到的下一个簇号是0xfff就说明整个文件内容都读完了
-    jz .load_succ
+    add cx, cluster_map_sector                             ;                扇区号=簇号+31
 
-    push ax                                                ;                当前簇号的下一个簇号入栈 给递归函数的下一层是用 也就是下层递归的当前簇号
-    add ax, cluster_map_sector                             ;                扇区号=簇号+31
-    add bx, [BPB_BytesPerSec]
-    jmp .dfs_load_for_file
+    mov ax, base_of_dest
+    mov es, ax
+    mov bx, offset_of_dest                                 ;                读取出来的loader.bin程序从base_of_dest:offset_of_dest地址开始往后放
 
-; @brief loader程序加载到了内存 让CPU跳转执行loader程序
-.load_succ:
-    jmp search_file_name_callback                          ;                让调用方决定加载完成之后的动作
+    mov ax, cx

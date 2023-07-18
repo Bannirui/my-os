@@ -1,13 +1,14 @@
 AS = nasm
 
 SRC_DIR = $(shell pwd)
-BOCHS_CFG = $(SRC_DIR)/cfg/boshsrc
+BOCHS_CFG = $(SRC_DIR)/bochs/boshsrc
 BOOT_FILE = $(SRC_DIR)/bootloader/boot.bin
 LOADER_FILE = $(SRC_DIR)/bootloader/loader.bin
 KERNEL_FILE = $(SRC_DIR)/kernel/kernel.bin
 
 BOCHS_DIR = /home/dingrui/Apps/bochs-2.6.8
 BOCHS_FILE = $(BOCHS_DIR)/bochs
+BXIMAGE = $(BOCHS_DIR)/bximage
 
 FLOPPY_MOUNT_POINT = $(BOCHS_DIR)/tmp
 FLOPPY_IMG = $(SRC_DIR)/a.img
@@ -21,7 +22,7 @@ boot: clean cb
 	@if [ ! -e ${BOCHS_DIR}/bximage ]; then echo "bximage not found" && exit 1;fi
 	@rm -rf $(FLOPPY_IMG)
 	@echo "floppy..."
-	$(BOCHS_DIR)/bximage
+	$(BXIMAGE)
 	@echo "boot..."
 	@if [ ! -e ${BOOT_FILE} ]; then echo "boot.bin not found" && exit 1;fi
 	dd if=$(BOOT_FILE) of=$(FLOPPY_IMG) bs=512 count=1 conv=notrunc
@@ -35,7 +36,7 @@ loader: clean cb
 	@if [ ! -e ${BOCHS_DIR}/bximage ]; then echo "bximage not found" && exit 1;fi
 	@rm -rf $(FLOPPY_IMG)
 	@echo "floppy..."
-	$(BOCHS_DIR)/bximage
+	$(BXIMAGE)
 	@echo "boot..."
 	@if [ ! -e ${BOOT_FILE} ]; then echo "boot.bin not found" && exit 1;fi
 	dd if=$(BOOT_FILE) of=$(FLOPPY_IMG) bs=512 count=1 conv=notrunc
@@ -57,7 +58,7 @@ kernel: clean cb ck
 	@if [ ! -e ${BOCHS_DIR}/bximage ]; then echo "bximage not found" && exit 1;fi
 	@rm -rf $(FLOPPY_IMG)
 	@echo "floppy..."
-	$(BOCHS_DIR)/bximage
+	$(BXIMAGE)
 	@echo "boot..."
 	@if [ ! -e ${BOOT_FILE} ]; then echo "boot.bin not found" && exit 1;fi
 	dd if=$(BOOT_FILE) of=$(FLOPPY_IMG) bs=512 count=1 conv=notrunc

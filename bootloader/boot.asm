@@ -114,12 +114,13 @@ start:
 ; 通过FAT12文件系统加载指定文件
 %include "fat12read1.inc"
 %include "fat12read2.inc"
+%include "fat12read3.inc"
 
 ; @brief loader程序加载完成的回调
 search_file_name_callback:
     jmp base_of_dest:offset_of_dest                        ;                跳转到loader程序
 
-%include "fat12read3.inc"
+%include "fat12read4.inc"
 
 ; 当前程序启动提示信息
 running_msg:      db "BOOT running",0

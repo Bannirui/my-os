@@ -10,13 +10,14 @@ jmp start
 %include "fat12.inc"
 
 base_of_dest        equ 0x0000
-offset_of_dest      equ 0x7e00                             ;                地址=0<<4+0x7e00=0x07e00 加载kernel程序到该地址 临时存放在这
+offset_of_dest      equ 0x0500                             ;                地址=0<<4+0x0500=0x00500 加载kernel程序到该地址 临时存放在这
 
 base_of_kernel      equ 0x00
 offset_of_kernel    equ 0x100000                           ;                kernel程序会从上面地址再复制到这个地址上 跳转到该地址 将CPU执行权转移到kernel程序上
 
-mem_struct_buf_addr equ 0x7e00
+mem_struct_buf_addr equ 0x7e00                             ;                保存物理地址空间信息
 
+; CPU模式切换前的数据结构准备 GDT表 32位保护模式下的GDT表
 [section gdt_32]
 gdt_32:
     dd 0,0
@@ -29,11 +30,12 @@ desc_data_32:
 
 gdt_32_sz equ $ - gdt_32
 gdt_32_ptr dw gdt_32_sz - 1
-dd gdt_32
+           dd gdt_32                                       ;                GDT表的基地址和长度必须借助LGDT汇编指令才能加载到GDTR寄存器中 GDTR寄存器是6B的结构 低2B保存GDT表的长度 高4B保存GDT表的基地址 用指针gdt_ptr指向该结构的起始地址
 
 selector_code_32 equ desc_code_32 - gdt_32
 selector_data_32 equ desc_data_32 - gdt_32
 
+; CPU模式切换前的数据结构准备 GDT表 64位保护模式(IA-32e模式)下的GDT表
 [section gdt_64]
 gdt_64:
     dq 0x0000000000000000
@@ -46,7 +48,7 @@ desc_data_64:
 
 gdt_64_sz equ $ - gdt_64
 gdt_64_ptr dw gdt_64_sz-1
-dd gdt_64
+           dd gdt_64                                       ;                GDT表的基地址和长度必须借助LGDT汇编指令才能加载到GDTR寄存器中 GDTR寄存器是6B的结构 低2B保存GDT表的长度 高4B保存GDT表的基地址 用指针gdt_ptr指向该结构的起始地址
 
 selector_code_64 equ desc_code_64 - gdt_64
 selector_data_64 equ desc_data_64 - gdt_64
@@ -109,24 +111,22 @@ print_running_msg:
 ;        经此之后 FS段寄存器的特殊寻址能力就可以将内核程序移动到1M以上的内存地址空间
 .open_a20:
     push ax
-    in al, 0x92
+    in al, 0x92                                            ;                南桥芯片内的端口
     or al, 0x02
     out 0x92, al
     pop ax
     cli                                                    ;                关闭外部中断
-
     db 0x66
     lgdt [gdt_32_ptr]                                      ;                加载保护模式结构数据信息
 
     mov eax, cr0
-    or eax, 1
+    or eax, 0x01
     mov cr0, eax                                           ;                置位CR0寄存器的第0位开启保护模式
     mov ax, selector_data_32
     mov fs, ax                                             ;                给FS段寄存器加载新的数据段值
     mov eax, cr0
     and al, 0xfe
     mov cr0, eax                                           ;                退出保护模式
-
     sti                                                    ;                开启外部中断
 
 ; @brief 重置软盘 为读取做准备
@@ -137,15 +137,22 @@ print_running_msg:
 
 %include "fat12read1.inc"
 
-; 相当于重写fat12read2.inc中逻辑
+.file_found:
+    and di, 0xfff0                                         ;                当前是根目录项中的文件名是匹配成功的 那么地址偏移是11 地址后4bit的表达区间是[0...15] 把后4位置0就是当前根目录项的首地址
+    add di, 0x001a                                         ;                当前偏移0 重置到26偏移 [26...27]记录着起始簇号
+    mov cx, word[es:di]                                    ;                文件对应的起始簇号读取出来
+    push cx                                                ;                起始簇号 将簇号缓存在栈中 读取完当前簇号内容后 还要根据簇号找到下一个簇号
+    add cx, cluster_map_sector                             ;                扇区号=簇号+31
+    mov eax, base_of_dest
+    mov es, eax
+    mov bx, offset_of_dest                                 ;                读取出来的loader.bin程序从base_of_dest:offset_of_dest地址开始往后放
+    mov ax, cx
+
 .dfs_load_for_file:
     call func_print_char
-
     mov cl, 1                                              ;                准备读1个扇区
     call func_read_sector
-
     pop ax
-
     ; --- 读完一个扇区就复制一个扇区 ----
     push cx
     push eax
@@ -191,20 +198,33 @@ print_running_msg:
 ; @brief 将kernel成加载完成 打印调试信息
 .load_succ:
     mov ax, 0x0b800
-    mov gs, ax
-    mov ah, 0x0f
-    mov al, 'G'
-    mov [gs:((80*0+39)*2)], ax
+    mov gs, ax                                             ;                GS段寄存器的基地址设置在0x0b800处
+    mov ah, 0x0f                                           ;                AH控制字体属性
+                                                           ;                位[0...3]控制背景颜色 0000=黑色
+                                                           ;                位[4...7]控制字体颜色 1111=白色
+    mov al, 'G'                                            ;                要显示的字符
+    mov [gs:((80*0+39)*2)], ax                             ;                AX寄存器的值填充到0x0b800偏移指定的位置上
 
 ; @brief 关闭软驱马达
 ;        kernel程序已经从软盘中被加载出来 后续软盘将不再使用
+;        通过向IO端口0x03f2写控制命令的方式控制软盘驱动功能
+;        位[7] 控制软驱D马达 1=启动 0=关闭
+;        位[6] 控制软驱C马达 1=启动 0=关闭
+;        位[5] 控制软驱B马达 1=启动 0=关闭
+;        位[4] 控制软驱A马达 1=启动 0=关闭
+;        位[3] 1=允许DMA和中断请求 0=禁止DMA和中断请求
+;        位[2] 1=允许软盘控制器发送控制信息 0=复位软盘驱动器
+;        位[1]
+;        位[0]
+;        低位2个组合用于选择哪个驱动器 即[A...D]中哪个软驱马达
 .kill_floppy:
     push dx
     mov dx, 0x03f2
     mov al, 0
-    out dx, al
+    out dx, al                                             ;                控制命令写端口0x03f2
     pop dx
 
+; @brief 准备通过BIOS中断int 15h获取物理地址空间信息
 .print_mem_msg:
     mov ax, 0x1301
     mov bx, 0x000f
@@ -220,20 +240,33 @@ print_running_msg:
     mov ebx, 0
     mov ax, 0x00
     mov es, ax
-    mov di, mem_struct_buf_addr
+    mov di, mem_struct_buf_addr                            ;                0x07e00放物理地址空间信息
 
+; @brief 实模式下BIOS中断 获取物理地址空间信息
+; @param EAX    Function Code   E820h
+; @param EBX    Continuation
+; @param ES:DI  Buffer Pointer  Pointer to an Address Range Description structure which the BIOS is to fill in
+; @param ECX    Buffer Size
+; @param EDX    Signature
+;
+; @return CF    Carry Flag      Non-Carry - indicates no error
+; @return EAX   Signature
+; @return ES:DI Buffer Pointer
+; @return ECX   Buffer Size
+; @return EBX   Continuation    A return value of zero means that this is the last descriptor.
 .get_mem_struct:
-    mov eax, 0x0e820
+    mov eax, 0x0e820                                       ;                中断功能号
     mov ecx, 20
     mov edx, 0x534d4150
     int 0x15
-    jc .get_mem_fail
-    add di, 20
+    jc .get_mem_fail                                       ;                CF=1 CF标志位有进位 即int 0x15中断调用有异常发生
+    add di, 20                                             ;                每次中断调用结果用的内存buffer是20B 还有结果可以获取就要后移填充的指针
 
     cmp ebx, 0
-    jne .get_mem_struct
-    jmp .get_mem_succ
+    jne .get_mem_struct                                    ;                EBX不是0说明继续获取信息填充到内存
+    jmp .get_mem_succ                                      ;                EBX是0说明物理地址空间信息已经获取完
 
+; @brief 通过BIOS中断获取物理地址空间信息失败 打印提示信息
 .get_mem_fail:
     mov ax, 0x1301
     mov bx, 0x008c
@@ -247,6 +280,7 @@ print_running_msg:
     int 0x10
     jmp $
 
+; @brief 通过BIOS中断获取物理地址空间信息成功 打印提示信息
 .get_mem_succ:
     mov ax, 0x1301
     mov bx, 0x000f
@@ -377,6 +411,12 @@ print_running_msg:
     mov bp, svga_mode_succ_msg
     int 0x10
 
+; @brief 设置SVGA芯片的显示模式
+;        从Bochs虚拟平台的SVGA芯片中获取显示配置信息 包括屏幕分辨率\每个像素点的数据位宽\颜色格式
+;        通过配置不同的显示模式就可以配置出不同的屏幕分辨率\每个像素点的数据位宽\颜色格式
+;          模式        列        行         物理地址         像素点位宽
+;         0x180      1440      900        e0000000h         32bit
+;         0x143       800      600        e0000000h         32bit
 .set_vesa_vbe:
     mov ax, 0x4f02
     mov bx, 0x4180
@@ -384,20 +424,22 @@ print_running_msg:
     cmp ax, 0x004f
     jnz .over
 
-.switch_protect_mode:
-    cli
-    db 0x66
-    lgdt [gdt_32_ptr]
+; CPU模式切换 由16位实模式切换到32位保护模式
+.switch_to_protect_mode_32:
+    cli                                                    ;                CLI汇编指令禁止可屏蔽硬件中断 模式切换程序必须保证在切换过程中不能产生异常和中断
+    db 0x66                                                ;                0x66是LGDT指令和LIDT指令的前缀 用于修饰当前指令的操作数是32位宽
+    lgdt [gdt_32_ptr]                                      ;                通过LGDT指令加载6B的数据到GDTR寄存器中 低2B保存GDT表的长度 高4B保存GDT表的基地址
     mov eax, cr0
     or eax, 1
-    mov cr0, eax
-
-    jmp dword selector_code_32:.tmp_proj
+    mov cr0, eax                                           ;                置位CR0寄存器第0位为1
+    jmp dword selector_code_32:protected_code_32           ;                典型的保护模式切换方式 在CR0寄存器设置之后紧随远跳到保护模式的代码去执行
 
 [section .s32]
 [bits 32]
 
-.tmp_proj:
+; @brief 32位保护模式下的代码 供给16位实模式切换32位保护模式远跳
+protected_code_32:
+    ; 进入保护模式首先要做的就是初始化各个段寄存器和栈指针
     mov ax, 0x10
     mov ds, ax
     mov es, ax
@@ -405,12 +447,13 @@ print_running_msg:
     mov ss, ax
     mov esp, 0x7e00
 
-    call .support_long_mode
+    call .check_if_support_long_mode                       ;                检测CPU处理器是否支持IA-32e长模式 处理器支持IA-32e模式就从32位保护模式切换到IA-32e模式 处理器不支持IA-32e模式就进入待机状态不做任何操作
     test eax, eax
-    jz .no_support
+    jz .non_support_ia32e                                  ;                处理器不支持64位长模式
 
+; @brief 处理器支持IA-32e模式 开始为IA-32e模式配置临时页目录和页表项
 .init_tmp_page_table:
-    mov dword[0x90000], 0x91007
+    mov dword[0x90000], 0x91007                            ;                IA-32e模式下页目录首地址在0x90000上
     mov dword[0x90800], 0x91007
     mov dword[0x91000], 0x92007
     mov dword[0x92000], 0x000083
@@ -420,9 +463,11 @@ print_running_msg:
     mov dword[0x92020], 0x800083
     mov dword[0x92028], 0xa00083
 
-.load_gdtr:
-    db 0x66
-    lgdt [gdt_64_ptr]
+; @brief 从32位保护模式切换到IA-32e模式的前置准备工作 重新加载全局描述符表GDT 初始化大部分寄存器
+.switch_to_protect_mode_64:
+    db 0x66                                                ;                LGDT指令和LIDT指令前缀 修饰位宽是32位
+    lgdt [gdt_64_ptr]                                      ;                通过LGDT指令加载6B的数据到GDTR寄存器中 低2B保存GDT表的长度 高4B保存GDT表的基地址
+    ; 进入保护模式首先要做的就是初始化各个段寄存器和栈指针 CS代码段寄存器值不能通过直接赋值方式来改变 只能通过跨段跳转(far jmp)或者跨段调用(far call)指令来改变
     mov ax, 0x10
     mov ds, ax
     mov es, ax
@@ -431,32 +476,37 @@ print_running_msg:
     mov ss, ax
     mov esp, 0x7e00
 
+; @brief 开启PAE CR4寄存器的第5位是PAE的功能位
 .open_pae:
     mov eax, cr4
-    bts eax, 5
+    bts eax, 5                                             ;                EAX位5置1
     mov cr4, eax
 
+; @brief 临时页目录的首地址设置到CR3寄存器中
 .load_cr3:
     mov eax, 0x90000
     mov cr3, eax
 
+; @brief 通过置位IA32_EFER寄存器的LME标志位(第8位)来激活IA-32e模式
 .enable_long_mode:
-    mov ecx, 0x0c0000080
+    mov ecx, 0x0c0000080                                   ;                IA32_EFER寄存器
     rdmsr
-    bts eax, 8
+    bts eax, 8                                             ;                将IA32_EFER寄存器第8位置1 但是IA32_EFER寄存器是位于MSR寄存器组内 为了操作IA32_EFER寄存器必须借助特殊汇编指令RDMSR/WRMSR
     wrmsr
 
+; @brief 再次使能保护模式 真正进入64位长模式
 .open_pe_and_page:
     mov eax, cr0
-    bts eax, 0
-    bts eax, 31
+    bts eax, 0                                             ;                使能CR0寄存器的0位 PE=1 使处理器运行于保护模式
+    bts eax, 31                                            ;                使能CR0寄存器的31位 PG=1 启用分页管理机制
     mov cr0, eax
-    ; 调试
-    jmp $
-    jmp selector_code_64:offset_of_kernel
+    jmp selector_code_64:offset_of_kernel                  ;                此时处理器处于的是兼容模式 也就是处理器虽然进入了IA-32e模式 但是运行的的代码还是保护模式的程序 通过一段跨段跳\跨段调用将CS段寄存器的值更新为IA-32e模式的代码段描述符 CPU就真正进入了64位长模式IA-32e
 
-.support_long_mode:
+; @brief 检测CPU处理器是否支持IA-32e长模式 处理器支持IA-32e模式就从32位保护模式切换到IA-32e模式 处理器不支持IA-32e模式就进入待机状态不做任何操作
+.check_if_support_long_mode:
     mov eax, 0x80000000
+    ; @brief CPUID指令会根据EAX寄存器传入的基础功能号查询处理器的坚定信息和机能信息 其返回结果存储在EAX\EBX\ECX和EDX寄存器中
+    ;        CPUID指令的扩展功能项0x80000001的第29位指示处理器是否支持IA-32e模式 只有当CPUID扩展功能号>=0x80000001才有可能支持64位的长模式
     cpuid
     cmp eax, 0x80000001
     setnb al
@@ -470,28 +520,31 @@ print_running_msg:
     movzx eax, al
     ret
 
-.no_support:
+; @brief 处理器不支持IA-32e的64位长模式 使其待机在这
+.non_support_ia32e:
     jmp $
 
 [section .s16lib]
 [bits 16]
 
-%include "fat12read3.inc"
+%include "fat12read4.inc"
 
+; @brief 打印16进制数值
+; @param AL 要显示的16进制数
 show_hex:
     push ecx
     push edx
     push edi
     mov edi, [show_pos]
-    mov ah, 0x0f
-    mov dl, al
-    shr al, 4
+    mov ah, 0x0f                                           ;                AH寄存器存储字体颜色属性 位[7...4]标识背景颜色 0000=黑色 位[3...0]标识字体颜色 1111=白色
+    mov dl, al                                             ;                要先处理AL的高4位 因此先把AL的值缓存到DL寄存器中
+    shr al, 4                                              ;                AL的高4位
     mov ecx, 2
 
 .begin:
     and al, 0x0f
     cmp al, 9
-    ja .1
+    ja .1                                                  ;                AL高4位大于9则减去0Ah并与字符A相加 否则直接将其与字符0相加
     add al, '0'
     jmp .2
 
@@ -510,6 +563,7 @@ show_hex:
     pop ecx
     ret
 
+; 为IDT开辟内存空间
 idt:
     times 0x50 dq 0
 idt_end:
