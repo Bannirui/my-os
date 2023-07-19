@@ -149,15 +149,3 @@ func_next_entry:
     pop bx
     pop es
     ret
-
-; @brief 打印一个字符 用于调试
-func_print_char:
-    push ax
-    push bx
-    mov ah, 0x0e
-    mov al, '-'
-    mov bl, 0x0f
-    int 0x10
-    pop bx
-    pop ax
-    ret

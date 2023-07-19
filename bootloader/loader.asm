@@ -112,11 +112,11 @@ print_running_msg:
 .open_a20:
     push ax
     in al, 0x92                                            ;                南桥芯片内的端口
-    or al, 0x02
-    out 0x92, al
+    or al, 0x02                                            ;                0x92端口第1位置1
+    out 0x92, al                                           ;                控制命令写端口0x92
     pop ax
     cli                                                    ;                关闭外部中断
-    db 0x66
+    db 0x66                                                ;                0x66是LGDT指令和LIDT指令的前缀 用于修饰当前指令的操作数是32位宽
     lgdt [gdt_32_ptr]                                      ;                加载保护模式结构数据信息
 
     mov eax, cr0
@@ -125,7 +125,7 @@ print_running_msg:
     mov ax, selector_data_32
     mov fs, ax                                             ;                给FS段寄存器加载新的数据段值
     mov eax, cr0
-    and al, 0xfe
+    and al, 0xfe                                           ;                CR0寄存器第0位置0
     mov cr0, eax                                           ;                退出保护模式
     sti                                                    ;                开启外部中断
 
@@ -149,7 +149,15 @@ print_running_msg:
     mov ax, cx
 
 .dfs_load_for_file:
-    call func_print_char
+    push ax
+    push bx
+    mov ah, 0x0e
+    mov al, '-'
+    mov bl, 0x0f
+    int 0x10
+    pop bx
+    pop ax
+
     mov cl, 1                                              ;                准备读1个扇区
     call func_read_sector
     pop ax
@@ -192,7 +200,6 @@ print_running_msg:
 
     push ax                                                ;                当前簇号的下一个簇号入栈 给递归函数的下一层是用 也就是下层递归的当前簇号
     add ax, cluster_map_sector                             ;                扇区号=簇号+31
-    add bx, [BPB_BytesPerSec]
     jmp .dfs_load_for_file
 
 ; @brief 将kernel成加载完成 打印调试信息
@@ -219,7 +226,7 @@ print_running_msg:
 ;        低位2个组合用于选择哪个驱动器 即[A...D]中哪个软驱马达
 .kill_floppy:
     push dx
-    mov dx, 0x03f2
+    mov dx, 0x03f2                                         ;                端口0x03f2
     mov al, 0
     out dx, al                                             ;                控制命令写端口0x03f2
     pop dx
@@ -261,6 +268,7 @@ print_running_msg:
     int 0x15
     jc .get_mem_fail                                       ;                CF=1 CF标志位有进位 即int 0x15中断调用有异常发生
     add di, 20                                             ;                每次中断调用结果用的内存buffer是20B 还有结果可以获取就要后移填充的指针
+    inc dword [mem_struct_cnt]                             ;                计数 统计调用了多少次中断函数去获取物理地址空间信息
 
     cmp ebx, 0
     jne .get_mem_struct                                    ;                EBX不是0说明继续获取信息填充到内存
@@ -268,6 +276,7 @@ print_running_msg:
 
 ; @brief 通过BIOS中断获取物理地址空间信息失败 打印提示信息
 .get_mem_fail:
+    mov dword[mem_struct_cnt], 0                           ;                计数归0
     mov ax, 0x1301
     mov bx, 0x008c
     mov dx, 0x0500
@@ -278,7 +287,6 @@ print_running_msg:
     pop ax
     mov bp, mem_struct_err_msg
     int 0x10
-    jmp $
 
 ; @brief 通过BIOS中断获取物理地址空间信息成功 打印提示信息
 .get_mem_succ:
@@ -380,6 +388,7 @@ print_running_msg:
     cmp ax, 0x004f
     jnz .svga_mode_err
 
+    inc dword[svga_mode_cnt]
     add esi, 2
     add edi, 0x100
     jmp .svga_mode_start
@@ -583,6 +592,7 @@ root_dir_loop_sz  dw root_dir_sector_cnt
 offset_of_kernel_file_cnt dd offset_of_kernel
 
 ; mem
+mem_struct_cnt dd 0
 mem_struct_start_msg: db "mem struct...",0
 mem_struct_succ_msg: db "mem struct, succ",0
 mem_struct_err_msg: db "mem struct, err",0
@@ -593,6 +603,7 @@ svga_vbe_succ_msg: db "svga vbe, succ",0
 svga_vbe_err_msg: db "svga vbe, err",0
 
 ; svga_mode
+svga_mode_cnt dd 0
 svga_mode_start_msg: db "svga mode...",0
 svga_mode_succ_msg: db "svga mode, succ",0
 svga_mode_err_msg: db "svga mode, err",0

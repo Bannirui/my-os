@@ -4,7 +4,14 @@
 ;                        AL=待显示的字符
 ;                        BL=前景色
 .dfs_load_for_file:
-    call func_print_char
+    push ax
+    push bx
+    mov ah, 0x0e
+    mov al, '-'
+    mov bl, 0x0f
+    int 0x10
+    pop bx
+    pop ax
 
     mov cl, 1                                              ;                准备读1个扇区
     call func_read_sector
