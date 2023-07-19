@@ -1,5 +1,7 @@
 ## MY-OS
 
+[TODO list](./TODO.md)
+
 ### 1 调试平台
 
 一开始用的是MAC系统来调试引导程序，BIOS切换CPU执行权，执行boot程序是没有问题的。
