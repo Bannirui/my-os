@@ -6,10 +6,11 @@
 
 一开始用的是MAC系统来调试引导程序，BIOS切换CPU执行权，执行boot程序是没有问题的。
 
-之后在boot程序中构建了FAT12文件系统，用其加载loader程序，这个时候在挂载目录文件这个地方遇到了坎，因此放弃了MAC平台的调试方案，转而到Linux系统。
+之后在boot程序中构建了FAT12文件系统，用其加载loader程序，这个时候在挂载目录文件这个地方遇到了坎(macos do not support `mount`)，因此放弃了MAC平台的调试方案，转而到Linux系统。
 
 * [MAC平台](./docs/MAC.md)
-* [Linux平台](./docs/CENTOS.md)
+* [Centos平台](./docs/CENTOS.md)
+* [Ubuntu](./docs/UBUNTU.md)
 
 ### 2 程序文件
 

@@ -55,3 +55,7 @@ dkms.conf
 .idea
 .vscode
 *.bin
+
+*.s
+*.img
+/kernel/system

@@ -1,4 +1,6 @@
-## Linux平台
+## Centos平台
+
+dev on mac and build on centos.
 
 ### 1 Centos安装
 

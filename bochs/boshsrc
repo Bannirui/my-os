@@ -1,11 +1,11 @@
-romimage: file=/home/dingrui/Apps/bochs-2.6.8/bios/BIOS-bochs-latest
-vgaromimage: file=/home/dingrui/Apps/bochs-2.6.8/bios/VGABIOS-lgpl-latest
-floppya: type=1_44, 1_44=/home/dingrui/Dev/my-os/a.img, status=inserted, write_protected=0
+romimage: file=/home/rui/Documents/softWare/bochs/bochs-2.7/bios/BIOS-bochs-latest
+vgaromimage: file=/home/rui/Documents/softWare/bochs/bochs-2.7/bios/VGABIOS-lgpl-latest
+floppya: type=1_44, 1_44=/home/rui/myDev/code/c/my-os/tmp/my_os_floppy.img, status=inserted, write_protected=0
 log: -
 
 plugin_ctrl: unmapped=1, biosdev=1, speaker=1, extfpuirq=1, parallel=1, serial=1, iodebug=1
 config_interface: textconfig
-display_library: x
+display_library: sdl2
 memory: host=2048, guest=2048
 boot: floppy
 floppy_bootsig_check: disabled=0
