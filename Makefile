@@ -58,6 +58,7 @@ kernel: clean compile_bootloader compile_kernel
 	dd if=$(BOOT_FILE) of=$(FLOPPY_IMG) bs=512 count=1 conv=notrunc
 	@echo "mount..."
 	if [ ! -d ${FLOPPY_MOUNT_POINT} ]; then sudo mkdir -p ${FLOPPY_MOUNT_POINT};fi
+	sudo mount -t vfat -o loop --source $(FLOPPY_IMG) --target $(FLOPPY_MOUNT_POINT)
 	@echo "loader..."
 	if [ ! -e ${LOADER_FILE} ]; then echo "loader.bin not found" && exit 1;fi
 	sudo cp $(LOADER_FILE) $(FLOPPY_MOUNT_POINT)/
@@ -95,7 +96,8 @@ main.o: kernel/main.c
 clean:
 	-rm -f $(BOOT_FILE)
 	-rm -f $(LOADER_FILE)
-	-umount $(FLOPPY_MOUNT_POINT)
+	-sudo umount $(FLOPPY_MOUNT_POINT)
+	rm -rf $(FLOPPY_MOUNT_POINT)/*
 	-rm -rf $(FLOPPY_IMG)
 	-rm -rf $(SRC_DIR)/kernel/*.s
 	-rm -rf $(SRC_DIR)/kernel/*.o
