@@ -1,17 +1,18 @@
-AS = nasm
-
+# project
 SRC_DIR = $(shell pwd)
-BOCHS_CFG = $(SRC_DIR)/bochs/boshsrc
+BOCHS_CFG = $(SRC_DIR)/bochs/boshsrc-archlinux
 BOOT_FILE = $(SRC_DIR)/bootloader/boot.bin
 LOADER_FILE = $(SRC_DIR)/bootloader/loader.bin
 KERNEL_FILE = $(SRC_DIR)/kernel/kernel.bin
 
-BOCHS_DIR = /home/rui/Documents/softWare/bochs
-BOCHS_FILE = /usr/bin/bochs
-BXIMAGE = /usr/bin/bximage
-
+# os or env
+AS = nasm
+BOCHS_DIR = /home/dingrui/Documents/software/bochs
+BOCHS_FILE = /usr/local/bin/bochs
+BXIMAGE = /usr/local/bin/bximage
 FLOPPY_MOUNT_POINT = $(SRC_DIR)/tmp/mount_point
-FLOPPY_IMG = $(SRC_DIR)/tmp/my_os_floppy.img
+FLOPPY_DIR = $(SRC_DIR)/tmp
+FLOPPY_IMG = $(FLOPPY_DIR)/my_os_floppy.img
 
 default: kernel
 
@@ -20,6 +21,7 @@ boot: clean compile_boot
 	if [ ! -e ${BOCHS_CFG} ]; then echo "boshsrc not found" && exit 1;fi
 	rm -rf $(FLOPPY_IMG)
 	@echo "floppy..."
+	if [ ! -e ${FLOPPY_DIR} ]; then mkdir -p ${FLOPPY_DIR};fi
 	$(BXIMAGE) -func=create -fd=1.44M $(FLOPPY_IMG)
 	@echo "boot..."
 	if [ ! -e ${BOOT_FILE} ]; then echo "boot.bin not found" && exit 1;fi
@@ -32,6 +34,7 @@ bootloader: clean compile_bootloader
 	if [ ! -e ${BOCHS_CFG} ]; then echo "boshsrc not found" && exit 1;fi
 	rm -rf $(FLOPPY_IMG)
 	@echo "floppy..."
+	if [ ! -e ${FLOPPY_DIR} ]; then mkdir -p ${FLOPPY_DIR};fi
 	$(BXIMAGE) -func=create -fd=1.44M $(FLOPPY_IMG)
 	@echo "boot..."
 	if [ ! -e ${BOOT_FILE} ]; then echo "boot.bin not found" && exit 1;fi
@@ -52,6 +55,7 @@ kernel: clean compile_bootloader compile_kernel
 	if [ ! -e ${BOCHS_CFG} ]; then echo "boshsrc not found" && exit 1;fi
 	rm -rf $(FLOPPY_IMG)
 	@echo "floppy..."
+	if [ ! -e ${FLOPPY_DIR} ]; then mkdir -p ${FLOPPY_DIR};fi
 	$(BXIMAGE) -func=create -fd=1.44M $(FLOPPY_IMG)
 	@echo "boot..."
 	if [ ! -e ${BOOT_FILE} ]; then echo "boot.bin not found" && exit 1;fi

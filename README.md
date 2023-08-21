@@ -11,6 +11,7 @@
 * [MAC平台](./docs/MAC.md)
 * [Centos平台](./docs/CENTOS.md)
 * [Ubuntu](./docs/UBUNTU.md)
+* [ArchLinux](./docs/ArchLinux.md)
 
 ### 2 程序文件
 

@@ -10,7 +10,7 @@ dev on ubuntu and build on ubuntu as well.
 
 https://sourceforge.net/projects/bochs/files/bochs/2.7/
 
-#### 1.2 isntall
+#### 1.2 build
 
 ```shell
 cd Documents/softWare/bochs
@@ -165,18 +165,27 @@ echo "cur dir=$1"
 rename_ext $1
 ```
 
-#### 1.3  check
+#### 1.3 install
 
 ```shell
+sudo make install
+```
+
+#### 1.4  check
+
+```shell
+whereis bochs
+whereis bximage
+
 ls /usr/bin |grep 'bochs'
 ls /usr/bin |grep 'bximage'
 
 bochs --help cpu
 ```
 
-#### 1.4 error
+#### 1.5 error
 
-##### 1.4.1 execute path
+##### 1.5.1 execute path
 
 do not use the src absolute execute path, using the link symbol path(/usr/bin)
 
@@ -185,7 +194,7 @@ BOCHS_FILE = /usr/bin/bochs
 BXIMAGE = /usr/bin/bximage
 ```
 
-##### 1.4.2 display_library
+##### 1.5.2 display_library
 
 display_library: x not available
 
