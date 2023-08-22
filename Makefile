@@ -8,8 +8,8 @@ KERNEL_FILE = $(SRC_DIR)/kernel/kernel.bin
 # os or env
 AS = nasm
 BOCHS_DIR = /home/dingrui/Documents/software/bochs
-BOCHS_FILE = /usr/local/bin/bochs
-BXIMAGE = /usr/local/bin/bximage
+BOCHS_FILE = /usr/bin/bochs
+BXIMAGE = /usr/bin/bximage
 FLOPPY_MOUNT_POINT = $(SRC_DIR)/tmp/mount_point
 FLOPPY_DIR = $(SRC_DIR)/tmp
 FLOPPY_IMG = $(FLOPPY_DIR)/my_os_floppy.img
