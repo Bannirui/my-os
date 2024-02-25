@@ -1,6 +1,6 @@
 # project
 SRC_DIR = $(shell pwd)
-BOCHS_CFG = $(SRC_DIR)/bochs/boshsrc-archlinux
+BOCHS_CFG = $(SRC_DIR)/boshsrc-archlinux
 BOOT_FILE = $(SRC_DIR)/bootloader/boot.bin
 LOADER_FILE = $(SRC_DIR)/bootloader/loader.bin
 KERNEL_FILE = $(SRC_DIR)/kernel/kernel.bin

@@ -60,5 +60,5 @@ dkms.conf
 *.img
 /kernel/system
 
-# make构建目录
+# cmake构建目录
 [Bb][Uu][Ii][Ll][Dd]/
