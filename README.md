@@ -2,6 +2,17 @@
 
 [TODO list](./TODO.md)
 
+### QUICK START
+
+- 打包docker镜像
+`docker build ./buildenv -t myos-buildenv`
+- 启动docker容器
+`docker run --rm -it -v $PWD:/root/env myos-buildenv`
+- docker执行编译
+`make`
+- 宿主机执行
+`qemu-system-x86_64 -fda dist/floppy.img -boot a`
+
 ### 1 调试平台
 
 一开始用的是MAC系统来调试引导程序，BIOS切换CPU执行权，执行boot程序是没有问题的。
