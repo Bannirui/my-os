@@ -9,9 +9,11 @@
 - 以下命令全在项目根路径下执行
 
   - 打包docker镜像`docker build ./buildenv -t myos-buildenv`
-  - 启动docker容器`docker run --rm -it -v $PWD:/root/env myos-buildenv`
+  - 启动docker容器`docker run --rm -it --name my-os-env -v $PWD:/root/env myos-buildenv`
   - docker执行编译`make`
-  - 宿主机执行`qemu-system-x86_64 -fda dist/floppy.img -boot a`
+  - 宿主机执行
+    - 软盘启动`qemu-system-x86_64 -fda dist/floppy.img -boot a`
+    - 硬盘启动`qemu-system-x86_64 -hda dist/disk.img`
 
 ### 1 调试平台
 

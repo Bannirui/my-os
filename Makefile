@@ -1,9 +1,17 @@
 .PHONY: all run clean
 
-all: build-floppy
+all: build-disk
 
-# 第一阶段 BootLoader boot只能汇编成bin 
-build/boot.bin: src/boot.asm
+# 第一阶段 BootLoader只能汇编成bin 
+# 硬盘
+build/boot/disk/mbr.bin: src/boot/disk/mbr.asm
+	mkdir -p $(dir $@)
+	nasm -f bin -o $@ $<
+# 软盘
+build/boot/floppy/mbr.bin: src/boot/floppy/mbr.asm
+	mkdir -p $(dir $@)
+	nasm -f bin -o $@ $<
+build/boot/loader.bin: src/boot/loader.asm
 	mkdir -p $(dir $@)
 	nasm -f bin $< -o $@
 
@@ -24,18 +32,27 @@ build/boot.bin: src/boot.asm
 # 	objcopy -O binary $< $@
 
 # 制作软盘
+build-disk: dist/disk.img
 build-floppy: dist/floppy.img
 
-# dist/floppy.img: build/boot.bin build/kernel.bin
-dist/floppy.img: build/boot.bin
+dist/disk.img: build/boot/disk/mbr.bin build/boot/loader.bin
 	rm -rf dist
 	mkdir dist
 	# 1.44MB空镜像
 	dd if=/dev/zero of=$@ bs=512 count=2880
-	# 写boot
-	dd if=build/boot.bin of=$@ conv=notrunc bs=512 count=1
-	# 从第2扇区开始写kernel
-# 	dd if=build/kernel.bin of=$@ conv=notrunc bs=512 seek=1
+	# 写第1个扇区 0号
+	dd if=build/boot/disk/mbr.bin of=$@ conv=notrunc bs=512 count=1
+	# 从第2扇区开始写
+	dd if=build/boot/loader.bin of=$@ conv=notrunc bs=512 seek=1
 
+dist/floppy.img: build/boot/floppy/mbr.bin build/boot/loader.bin
+	rm -rf dist
+	mkdir dist
+	# 1.44MB空镜像
+	dd if=/dev/zero of=$@ bs=512 count=2880
+	# 写第1个扇区 0号
+	dd if=build/boot/floppy/mbr.bin of=$@ conv=notrunc bs=512 count=1
+	# 从第2扇区开始写
+	dd if=build/boot/loader.bin of=$@ conv=notrunc bs=512 seek=1
 clean:
 	rm -rf build dist
