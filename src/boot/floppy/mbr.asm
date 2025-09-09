@@ -15,7 +15,7 @@ start:
     mov fs, ax
     mov sp, 0x7c00
 
-    ; 屏显段用 GS
+    ; 屏显段用GS
     mov ax, 0xb800
     mov gs, ax
 
@@ -37,22 +37,22 @@ start:
     mov es, ax                 ; ES = 0x9000
     mov bx, LOADER_OFFSET      ; BX = 0x0000
 
-    mov ah, 0x02               ; 功能号: 读扇区
+    mov ah, 0x02               ; 功能号2表示读扇区
     mov al, 1                  ; 读1个扇区
-    mov ch, 0                  ; 柱面号 = 0
-    mov cl, LOADER_SECTOR      ; 扇区号 = 2
-    mov dh, 0                  ; 磁头号 = 0
+    mov ch, 0                  ; 柱面号=0
+    mov cl, LOADER_SECTOR      ; 扇区号=2
+    mov dh, 0                  ; 磁头号=0
 
     int 0x13
     jc disk_error              ; 如果出错跳错误处理
 
-    ; 跳转到 loader 入口
+    ; 跳转到loader程序入口
     jmp LOADER_SEG:LOADER_OFFSET
 
 disk_error:
-    ; 显示 "ERR" 并把 AH（错误码）以十六进制显示到屏上，便于调试
+    ; 中断函数读盘失败显示ERR
     mov byte [gs:0x0A], 'E'
-    mov byte [gs:0x0B], 0x4F   ; 红底白字
+    mov byte [gs:0x0B], 0x4F
     mov byte [gs:0x0C], 'R'
     mov byte [gs:0x0D], 0x4F
     mov byte [gs:0x0E], 'R'
