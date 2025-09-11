@@ -7,11 +7,18 @@ all: build-disk
 build/boot/disk/mbr.bin: src/boot/disk/mbr.asm
 	mkdir -p $(dir $@)
 	nasm -f bin -o $@ $<
+build/boot/disk/loader.bin: src/boot/disk/loader.asm
+	mkdir -p $(dir $@)
+	nasm -f bin $< -o $@
 # 软盘
 build/boot/floppy/mbr.bin: src/boot/floppy/mbr.asm
 	mkdir -p $(dir $@)
 	nasm -f bin -o $@ $<
-build/boot/loader.bin: src/boot/loader.asm
+build/boot/floppy/loader.bin: src/boot/floppy/loader.asm
+	mkdir -p $(dir $@)
+	nasm -f bin $< -o $@
+
+build/kernel/kernel.bin: src/kernel/kernel.asm
 	mkdir -p $(dir $@)
 	nasm -f bin $< -o $@
 
@@ -35,24 +42,25 @@ build/boot/loader.bin: src/boot/loader.asm
 build-disk: dist/disk.img
 build-floppy: dist/floppy.img
 
-dist/disk.img: build/boot/disk/mbr.bin build/boot/loader.bin
+dist/disk.img: build/boot/disk/mbr.bin build/boot/disk/loader.bin build/kernel/kernel.bin
 	rm -rf dist
 	mkdir dist
 	# 1.44MB空镜像
 	dd if=/dev/zero of=$@ bs=512 count=2880
-	# 写第1个扇区 0号
+	# 0#扇区
 	dd if=build/boot/disk/mbr.bin of=$@ conv=notrunc bs=512 count=1
-	# 从第2扇区开始写
-	dd if=build/boot/loader.bin of=$@ conv=notrunc bs=512 seek=1
-
-dist/floppy.img: build/boot/floppy/mbr.bin build/boot/loader.bin
+	# 1#扇区
+	dd if=build/boot/disk/loader.bin of=$@ conv=notrunc bs=512 count=1 seek=1
+	# 8#扇区
+	dd if=build/kernel/kernel.bin of=$@ conv=notrunc bs=512 count=1 seek=8
+dist/floppy.img: build/boot/floppy/mbr.bin build/boot/floppy/loader.bin
 	rm -rf dist
 	mkdir dist
 	# 1.44MB空镜像
 	dd if=/dev/zero of=$@ bs=512 count=2880
-	# 写第1个扇区 0号
+	# 0#扇区
 	dd if=build/boot/floppy/mbr.bin of=$@ conv=notrunc bs=512 count=1
-	# 从第2扇区开始写
-	dd if=build/boot/loader.bin of=$@ conv=notrunc bs=512 seek=1
+	# 1#扇区
+	dd if=build/boot/floppy/loader.bin of=$@ conv=notrunc bs=512 count=1 seek=1
 clean:
 	rm -rf build dist

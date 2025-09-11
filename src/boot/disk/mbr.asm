@@ -1,10 +1,10 @@
 ; 端口操作硬盘驱动
-; mbr程序是启动盘0号扇区内容 负责把第2个扇区的loader程序加载到内存
+; mbr程序是启动盘0#扇区内容 负责1#扇区的loader程序加载到内存
 ; loader程序负责加载内核代码到内存
 ; loader布局在0x900上
 
 LOADER_BASE_ADDR    equ 0x900
-LOADER_START_SECTOR equ 0x1 ; 磁第2个扇区 编号1 扇区编号是0-based
+LOADER_START_SECTOR equ 0x1 ; 磁盘1#扇区 扇区编号是0-based
 
 SECTION MBR vstart=0x7c00
     mov ax, cs
