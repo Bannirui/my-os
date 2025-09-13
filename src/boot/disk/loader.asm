@@ -1,7 +1,7 @@
 LOADER_BASE_ADDR equ 0x900
 section loader vstart=LOADER_BASE_ADDR
 ; kernel程序放在物理地址
-KERNEL_BASE_ADDR equ 0x1500
+KERNEL_BASE_ADDR equ 0x8000
 ; kernel程序从硬盘8#扇区开始
 KERNEL_START_SECTOR equ 0x08
 
