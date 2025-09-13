@@ -1,9 +1,10 @@
-/// 实现C库字符串的子集功能
+// 实现C库字符串的子集功能
 # include <stdint.h>
 
-extern void printInPos(char* msg, uint16_t len, uint8_t row, uint8_t col);
-extern void putchar(char c);
+// 在liba中通过BIOS中断已经封装好的函数
 extern char getch();
+extern void putchar(char c);
+extern void printInPos(char* msg, uint16_t len, uint8_t row, uint8_t col);
 
 // 字符串长度
 uint16_t strlen(char* str) {
@@ -48,7 +49,7 @@ void readToBuf(char* buffer, uint16_t maxlen) {
         // 非法字符
         if(!(tmp==0xd || tmp=='\b'|| tmp>=32 && tmp<=127)) { continue; }
         if(i>0 && i<maxlen-1) {
-            // 按下回车键 停止读取
+            // buffer中已经有了内容 按下回车键 停止读取
             if(tmp==0x0d) { break; }
             else if(tmp=='\b') { // 按下退格删除
                 putchar('\b');
@@ -61,12 +62,14 @@ void readToBuf(char* buffer, uint16_t maxlen) {
                 i++;
             }
         } else if(i>=maxlen-1) {
+            // buffer装满了
             if(tmp=='\b') { // 按下退格删除
                 putchar('\b');
                 putchar(' ');
                 putchar('\b');
                 i--;
             } else if(tmp==0x0d) {
+                // 回车
                 break;
             }
         } else if(i<=0) {

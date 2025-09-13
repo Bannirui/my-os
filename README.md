@@ -19,7 +19,6 @@
 
 以下命令全在项目根路径下执行
 
-- 打包docker镜像`docker build ./buildenv -t myos-buildenv`
 - 启动docker容器`docker run --rm -it --name my-os-env -v $PWD:/root/env myos-buildenv`
 - docker中执行编译`make`
 - 宿主机上执行`make run`

@@ -1,17 +1,20 @@
 BITS 16
 
-[global printInPos]
-[global putchar] ; 输出一个字符
+; 导出函数给libc调用 基于BIOS的中断功能封装函数
 [global getch] ; 获得键盘的输入
+[global putchar] ; 输出一个字符
+[global printInPos] ; 在光标的地方打印内容
 
+; 通过BIOS的16号中断从键盘读取字符 调用方就可以拿到键盘输入
 getch:
     mov ah, 0 ; 功能号
     int 0x16
-    mov ah, 0 ; 读取字符 al存的是读到的字符 同时设置为0 为返回作准备
+    mov ah, 0 ; 读取字符 al存的是读到的字符 同时设置ah为0 为返回作准备
     retf
 
-putchar: ; 在光标处打印一个字符到屏幕
-    pusha
+; 通过BIOS的10号中断 在光标处打印一个字符到屏幕
+putchar:
+    pusha ; 所有参数全部压栈
     mov bp, sp
     add bp, 16+4 ; 参数地址
     mov al, [bp] ; al=要打印的字符
@@ -21,7 +24,8 @@ putchar: ; 在光标处打印一个字符到屏幕
     popa
     retf
 
-printInPos: ; 在指定的位置显示字符串
+; 在指定的位置显示字符串
+printInPos:
     pusha
     mov si, sp ; si为参数寻址
     add si, 16+4 ; 首个参数地址

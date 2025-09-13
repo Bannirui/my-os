@@ -1,22 +1,39 @@
 LOADER_BASE_ADDR equ 0x900
 section loader vstart=LOADER_BASE_ADDR
+
+mov ax, 0xb800
+mov es, ax
+mov byte [es:0x00], 'L'
+mov byte [es:0x01], 0x07
+mov byte [es:0x02], 'O'
+mov byte [es:0x03], 0x07
+mov byte [es:0x04], 'A'
+mov byte [es:0x05], 0x07
+mov byte [es:0x06], 'D'
+mov byte [es:0x07], 0x07
+mov byte [es:0x08], 'E'
+mov byte [es:0x09], 0x07
+mov byte [es:0x0A], 'R'
+mov byte [es:0x0B], 0x07
+
 ; kernel程序放在物理地址
 KERNEL_BASE_ADDR equ 0x8000
 ; kernel程序从硬盘8#扇区开始
-KERNEL_START_SECTOR equ 0x08
+KERNEL_START_SECTOR equ 0x8
 
 
+mov eax, KERNEL_START_SECTOR ; LBA读入的扇区
+mov bx, KERNEL_BASE_ADDR ; 扇区里面内容读到哪个地址上
+mov cx, 4 ; 等待读入的扇区数量
+; 把磁盘上kernel代码读到内存上跳过去
+call rd_disk
+; 读盘后打印调试信息
 mov ax, 0xb800
 mov es, ax
 mov byte [es:0x00], 'O'
 mov byte [es:0x01], 0x07
 mov byte [es:0x02], 'K'
-mov byte [es:0x03], 0x06
-
-mov eax, KERNEL_START_SECTOR ; LBA读入的扇区
-mov bx, KERNEL_BASE_ADDR ; 扇区里面内容读到哪个地址上
-mov cx,1 ; 等待读入的扇区数量
-call rd_disk
+mov byte [es:0x03], 0x07
 ; 跳到kernel程序
 jmp KERNEL_BASE_ADDR
 
@@ -59,7 +76,7 @@ rd_disk:
     out dx, al
 
     ; 检测硬盘状态
-    .not_ready:
+.not_ready:
     nop
     in al, dx
     and al, 0x88 ; 4位为1表示可以传输 7位为1表示硬盘busy
@@ -73,9 +90,9 @@ rd_disk:
     mov cx, ax
     mov dx, 0x1f0
 
-    .go_on:
-        in ax, dx
-        mov [bx], ax
-        add bx, 2
-        loop .go_on
-        ret
+.go_on:
+    in ax, dx
+    mov [bx], ax
+    add bx, 2
+    loop .go_on
+    ret

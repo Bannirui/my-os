@@ -1,23 +1,25 @@
-ENTRY(start)
+ENTRY(_start)
 
 SECTIONS {
-  /*代码加载到的物理地址*/
-  . = 0x8000;
+    . = 0x8000;              /* 起始地址 */
 
-  .text : {
-    *(.text*)
-  }
+    .text : {
+        /* 先把 kernel.o 里的 _start 放在最前 */
+        build/kernel/kernel.o(.text)
+        /* 其他目标文件的代码 */
+        *(.text*)
+    }
 
-  .rodata : {
-    *(.rodata*)
-  }
+    .rodata : {
+        *(.rodata*)
+    }
 
-  .data : {
-    *(.data*)
-  }
+    .data : {
+        *(.data*)
+    }
 
-  .bss : {
-    *(.bss*)
-    *(COMMON)
-  }
+    .bss : {
+        *(.bss*)
+        *(COMMON)
+    }
 }

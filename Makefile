@@ -9,7 +9,7 @@ build/boot/disk/mbr.bin: src/boot/disk/mbr.asm
 	nasm -f bin -o $@ $<
 build/boot/disk/loader.bin: src/boot/disk/loader.asm
 	mkdir -p $(dir $@)
-	nasm -f bin $< -o $@
+	nasm -f bin -o $@ $<
 
 # 第二阶段 内核
 # 编译
@@ -18,22 +18,17 @@ asm_source_files := $(shell find src/kernel -name *.asm)
 asm_object_files := $(patsubst src/kernel/%.asm, build/kernel/%.o, $(asm_source_files))
 build/kernel/%.o: src/kernel/%.asm
 	mkdir -p $(dir $@)
-	nasm -f elf32 $< -o $@
+	nasm -f elf32 -o $@ $<
 
 c_source_files := $(shell find src/kernel -name *.c)
 c_object_files := $(patsubst src/kernel/%.c, build/kernel/%.o, $(c_source_files))
 build/kernel/%.o: src/kernel/%.c
 	mkdir -p $(dir $@)
-	gcc -m32 -c -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib $< -o $@
-	#gcc -c -m16 -march=i386 -nostdlib -ffreestanding -mpreferred-stack-boundary=2 -lgcc -shared $< -o $@
+	gcc -c -m16 -march=i386 -masm=intel -nostdlib -ffreestanding -fno-pic -mpreferred-stack-boundary=2 -lgcc -shared -o $@ $<
 
 # 链接
-build/kernel/kernel.elf: ${asm_object_files} ${c_object_files}
-	ld -m elf_i386 -T targets/linker.ld -o $@ $^
-	#ld -m elf_i386 -N -T targets/linker.ld --oformat binary $^ -o $@
-
-build/kernel/kernel.bin: build/kernel/kernel.elf
-	objcopy -O binary $< $@
+build/kernel/kernel.bin: ${asm_object_files} ${c_object_files}
+	ld -m elf_i386 -N -T targets/linker.ld --oformat binary -o $@ $^
 
 # 制作启动盘
 build-disk: dist/disk.img
@@ -48,10 +43,11 @@ dist/disk.img: build/boot/disk/mbr.bin build/boot/disk/loader.bin build/kernel/k
 	# 1#扇区
 	dd if=build/boot/disk/loader.bin of=$@ conv=notrunc bs=512 count=1 seek=1
 	# 8#扇区
-	dd if=build/kernel/kernel.bin of=$@ conv=notrunc bs=512 count=100 seek=8
+	dd if=build/kernel/kernel.bin of=$@ bs=512 count=100 seek=8
 
 run: dist/disk.img
-	qemu-system-i386 -hda dist/disk.img
+	qemu-system-x86_64 -hda dist/disk.img
+	#qemu-system-i386 -hda dist/disk.img
 
 clean:
 	rm -rf build dist
