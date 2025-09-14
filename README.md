@@ -22,3 +22,7 @@
 - 启动docker容器`docker run --rm -it --name my-os-env -v $PWD:/root/env myos-buildenv`
 - docker中执行编译`make`
 - 宿主机上执行`make run`
+
+### 3 TIPS
+
+- 调试的时候不方便写调试代码 直接检查`hexdump -C build/kernel/kernel.bin`

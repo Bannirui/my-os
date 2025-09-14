@@ -30,6 +30,11 @@ putchar:
 ; void printInPos(char* str, int len, int row, int col);
 printInPos:
     pusha ; 会往栈里面压入16字节 AX, CX, DX, BX, SP, BP, SI, DI 然后才是返回地址(返回地址是cs占2字节 ip占2字节)和参数(编译汇编时候会指定位宽32 每个参数占4字节 字符串地址 长度 行号 列号)
+
+    mov ax, 0xb800
+    mov es, ax
+    mov byte [es:0x00], 'X'
+
     mov bp, sp
     add bp, 16+4     ; 跳过pusha和返回地址
 
