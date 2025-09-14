@@ -5,14 +5,12 @@ BITS 16
 
 global _start
 _start:
-    ; 调试
     mov ax, 0xb800
     mov es, ax
     mov byte [es:0x00], 'X'
     mov byte [es:0x01], 0x07
-    mov byte [es:0x02], 'X'
-    mov byte [es:0x03], 0x04
-    call startUp ; 调用C写的函数
+
+    call dword startUp ; 调用C写的函数
 
 ; 等键盘输入命令
 KeyBoard:
