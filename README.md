@@ -10,7 +10,7 @@
 - 编译没有在宿主机上直接进行 需要用gcc编译16位实模式的代码 标准gcc不支持 安装docker 用i386基础镜像
 - 启动方式前期学习的是软盘 后来学习了硬盘 两相比较硬盘方式的读盘因为LBA更简单 因此切换到硬盘方式
 - make中写了对软盘启动方式的构建命令 只停留在loader的加载
-- 打包docker镜像`docker build --platform=linux/386 ./devenv -t myos-devenv`
+- 打包docker镜像`docker build ./devenv -t myos-devenv`
 - 宿主机执行启动盘方式
   - 软盘启动`qemu-system-x86_64 -fda dist/floppy.img -boot a`
   - 硬盘启动`qemu-system-x86_64 -hda dist/disk.img`
@@ -19,7 +19,7 @@
 
 以下命令全在项目根路径下执行
 
-- 启动docker容器`docker run --platform=linux/386 --rm -it --name myos-devenv -v $PWD:/root/dev myos-devenv`
+- 启动docker容器`docker run --rm -it --name myos-devenv -v $PWD:/root/dev myos-devenv`
 - docker中执行编译`make`
 - 宿主机上执行`make run`
 
