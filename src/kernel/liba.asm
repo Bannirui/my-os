@@ -29,28 +29,19 @@ putchar:
 ; 在指定的位置显示字符串
 ; void printInPos(char* str, int len, int row, int col);
 printInPos:
-    pusha ; 会往栈里面压入16字节 AX, CX, DX, BX, SP, BP, SI, DI 然后才是返回地址(返回地址是cs占2字节 ip占2字节)和参数(编译汇编时候会指定位宽32 每个参数占4字节 字符串地址 长度 行号 列号)
-
-    mov ax, 0xb800
-    mov es, ax
-    mov byte [es:0x00], 'X'
-
-    mov bp, sp
-    add bp, 16+4     ; 跳过pusha和返回地址
-
-    mov si, [bp]     ; 参数1 str
-    mov cx, [bp+4]   ; 参数2 len
-    mov dh, [bp+8]   ; 参数3 row
-    mov dl, [bp+12]   ; 参数4 col
-
+    pusha ; 会往栈里面压入16字节 AX, CX, DX, BX, SP, BP, SI, DI 然后才是返回地址(返回地址是cs占2字节 ip占2字节)和参数(编译汇编时候会指定位宽32 每个参数占2字节 字符串地址 长度 行号 列号)
+    mov si, sp            	;use SI
+    add si, 16 + 4        	;First parameter address
     mov ax, cs
     mov ds, ax
-    mov es, ax
-
-    mov bp, si       ; ES:BP = 字符串地址
-    mov ax, 0x1301
-    mov bx, 0x0007
-    int 0x10
-
+    mov bp, [si]          	;BP = offset
+    mov ax, ds            	;
+    mov es, ax            	;ES = DS
+    mov cx, [si + 4]      	;CX = String length
+    mov ax, 0x1301         	;functon number AH = 13 AL = 01H,Indicates that the cursor displays the end of the string
+    mov bx, 0x0007         	;BH = page number BL = 07 black and white
+    mov dh, [si + 8]      	;Line number= 0
+    mov dl, [si + 12]     	;Column number = 0
+    int 0x10               	;BIOS 10H interrupt call
     popa
     retf ; 返回到地址cs:ip上去

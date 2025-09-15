@@ -5,11 +5,15 @@
 
 // 系统启动界面
 void startUp() {
-    char* title="MY-OS";
-    char* hint="System is running, press ENTER to startup shell.";
+	char* title = "TinyOS Oerating System version 1.0";
+	char* subTitle = "Designed by DJH-sudo";
+	char* copyRight = "Coypleft by GNU";
+	char* hint = "System is ready.Press ENTER\r\n";
     // 调用liba的函数
-    printInPos(title,strlen(title),2,10);
-    printInPos(hint,strlen(hint),5,10);
+	printInPos(title,strlen(title),5,23);
+	printInPos(subTitle,strlen(subTitle),6,23);
+	printInPos(copyRight,strlen(copyRight),8,23);
+	printInPos(hint,strlen(hint),15,23);
 }
 
 // 打印shell提示符

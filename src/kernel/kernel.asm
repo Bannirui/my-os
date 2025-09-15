@@ -5,13 +5,13 @@ BITS 16
 
 global _start
 _start:
-    call dword startUp ; 调用C写的函数
+    call dword startUp ; 调用libc里面的函数
 
-; 等键盘输入命令
+; 等键盘输入
 KeyBoard:
     mov ah, 0
     int 0x16
-    cmp al, 0x0d ; enter键
+    cmp al, 0x0d ; 看看是不是回车键被按下
     jne KeyBoard
-    call dword shell ; 系统启动后按enter键调用libc中的shell函数
+    call dword shell ; 按下了回车键就跳到shell入口 调用libc里面的函数
     jmp KeyBoard

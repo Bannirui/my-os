@@ -1,5 +1,5 @@
 // 实现C库字符串的子集功能
-# include <stdint.h>
+#include <stdint.h>
 
 // 在liba中通过BIOS中断已经封装好的函数
 extern char getch();

@@ -1,8 +1,8 @@
 .PHONY: all run clean
 
 # 工具链变量
-CC := ia16-elf-gcc
-LD := ia16-elf-ld
+CC := gcc
+LD := ld
 AS := nasm
 
 all: build-disk
@@ -29,15 +29,11 @@ c_source_files := $(shell find src/kernel -name *.c)
 c_object_files := $(patsubst src/kernel/%.c, build/kernel/%.o, $(c_source_files))
 build/kernel/%.o: src/kernel/%.c
 	mkdir -p $(dir $@)
-	$(CC) -c -march=i186 -mcmodel=small -nostdlib -ffreestanding -fno-pic -fno-pie -o $@ $<
-# build/kernel/%.o: src/kernel/%.c
-# 	mkdir -p $(dir $@)
-# 	gcc -c -m16 -march=i386 -masm=intel -nostdlib -ffreestanding -mpreferred-stack-boundary=2 -lgcc -fno-pic -fno-pie -o $@ $<
+	$(CC) -c -m16 -march=i386 -masm=intel -nostdlib -ffreestanding -mpreferred-stack-boundary=2 -lgcc -shared -o $@ $<
 
 # 链接
 build/kernel/kernel.bin: ${asm_object_files} ${c_object_files}
-	$(CC) -nostdlib -Wl,-T,targets/linker.ld -Wl,-N,-Map,build/kernel/kernel.map -o $@ $^
-# 	$(LD) -m elf_i386 -N -T targets/linker.ld --oformat binary -o $@ $^
+	$(LD) -m elf_i386 -N -T targets/linker.ld --oformat binary -o $@ $^
 
 # 制作启动盘
 build-disk: dist/disk.img
@@ -52,11 +48,10 @@ dist/disk.img: build/boot/disk/mbr.bin build/boot/disk/loader.bin build/kernel/k
 	# 1#扇区
 	dd if=build/boot/disk/loader.bin of=$@ conv=notrunc bs=512 count=1 seek=1
 	# 8#扇区
-	dd if=build/kernel/kernel.bin of=$@ bs=512 count=100 seek=8
+	dd if=build/kernel/kernel.bin of=$@ conv=notrunc bs=512 count=100 seek=9
 
 run: dist/disk.img
-	qemu-system-x86_64 -hda dist/disk.img
-	#qemu-system-i386 -hda dist/disk.img
+	qemu-system-i386 -hda dist/disk.img
 
 clean:
 	rm -rf build dist

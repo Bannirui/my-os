@@ -30,19 +30,14 @@ SECTION MBR vstart=0x7c00
 
 ; 打印调试信息
     mov byte [gs:0x00], 'I'
-    mov byte [gs:0x01], 0xa4
     mov byte [gs:0x02], ' '
-    mov byte [gs:0x03], 0xa4
     mov byte [gs:0x04], 'M'
-    mov byte [gs:0x05], 0xa4
     mov byte [gs:0x06], 'B'
-    mov byte [gs:0x07], 0xa4
     mov byte [gs:0x08], 'R'
-    mov byte [gs:0x09], 0xa4
 
     mov eax, LOADER_START_SECTOR ; LBA读入的扇区
     mov bx, LOADER_BASE_ADDR ; 扇区里面内容读到哪个地址上
-    mov cx,1 ; 等待读入的扇区数量
+    mov cx, 1 ; 等待读入的扇区数量
     call rd_disk
     jmp LOADER_BASE_ADDR ; 跳到实际的物理内存
 
@@ -68,6 +63,7 @@ rd_disk:
     out dx, al
     ; 23到16位写入0x1f5
     shr eax, cl
+    and al, 0x0f
     mov dx, 0x1f5
     out dx, al
 
@@ -92,17 +88,17 @@ rd_disk:
 
     ; 读数据
     mov ax, di
-    mov dx, 256
+    mov dx, 512
     mul dx
     mov cx, ax
     mov dx, 0x1f0
 
-    .go_on:
-        in ax, dx
-        mov [bx], ax
-        add bx, 2
-        loop .go_on
-        ret
+.go_on:
+    in ax, dx
+    mov [bx], ax
+    add bx, 2
+    loop .go_on
+    ret
 
     times 510 - ($-$$) db 0
     dw 0xaa55
