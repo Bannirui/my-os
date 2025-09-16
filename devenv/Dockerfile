@@ -1,4 +1,4 @@
-FROM i386/ubuntu:16.04
+FROM --platform=linux/386 i386/ubuntu:16.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TARGET=ia16-elf
@@ -10,46 +10,40 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     bison \
     flex \
+    libgmp3-dev \
+    libmpc-dev \
+    libmpfr-dev \
     texinfo \
-    git \
     wget \
     curl \
     xz-utils \
+    git \
+    nasm \
+    make \
+    binutils \
+    gdb \
+    vim \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /tmp
-
-# 拉取 binutils + gcc-ia16 源码
-RUN git clone --depth=1 https://github.com/tkchia/binutils-gdb.git
-RUN git clone --depth=1 https://github.com/tkchia/gcc-ia16.git
-
-# 构建 binutils
-RUN mkdir build-binutils && cd build-binutils && \
-    ../binutils-gdb/configure \
-      --target=$TARGET \
-      --prefix=$PREFIX \
-      --disable-nls \
-      --disable-werror && \
-    make -j$(nproc) && \
-    make install
-
-# 构建 gcc (只构建 C 编译器)
-RUN mkdir build-gcc && cd build-gcc && \
-    ../gcc-ia16/configure \
+# 构建 gcc-ia16
+RUN git clone --recurse-submodules https://github.com/tkchia/gcc-ia16.git /tmp/gcc-ia16 && \
+    cd /tmp/gcc-ia16 && \
+    mkdir build && cd build && \
+    ../configure \
+      --build=i386-linux-gnu \
+      --host=i386-linux-gnu \
       --target=$TARGET \
       --prefix=$PREFIX \
       --disable-nls \
       --enable-languages=c \
-      --without-headers && \
-    make all-gcc -j$(nproc) && \
-    make install-gcc
+      --without-headers \
+      --disable-libssp \
+      --disable-libstdcxx \
+    && make all-gcc -j$(nproc) \
+    && make install-gcc
 
-# 构建 libgcc（必须单独搞）
-RUN cd build-gcc && \
-    make all-target-libgcc -j$(nproc) && \
-    make install-target-libgcc
-
-# 清理无用文件，减小镜像
-RUN rm -rf /tmp/*
+# 设置工作目录
+WORKDIR /root/dev
+VOLUME /root/dev
 
 CMD ["/bin/bash"]

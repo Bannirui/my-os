@@ -1,7 +1,7 @@
 .PHONY: all run clean
 
 # 工具链变量
-CC := gcc
+CC := ia16-elf-gcc
 LD := ld
 AS := nasm
 
@@ -29,7 +29,8 @@ c_source_files := $(shell find src/kernel -name *.c)
 c_object_files := $(patsubst src/kernel/%.c, build/kernel/%.o, $(c_source_files))
 build/kernel/%.o: src/kernel/%.c
 	mkdir -p $(dir $@)
-	$(CC) -c -m16 -march=i386 -masm=intel -nostdlib -ffreestanding -mpreferred-stack-boundary=2 -lgcc -shared -o $@ $<
+	$(CC) -c -masm=intel -nostdlib -ffreestanding -lgcc -shared -fno-builtin -fno-pic -fno-pie -o $@ $<
+
 
 # 链接
 build/kernel/kernel.bin: ${asm_object_files} ${c_object_files}
