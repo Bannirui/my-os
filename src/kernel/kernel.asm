@@ -5,4 +5,5 @@ BITS 16
 
 global _start
 _start:
-    call startUp ; 调用libc里面的函数
+    call dword startUp ; near call调用libc里面的函数
+    hlt
