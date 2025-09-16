@@ -1,4 +1,5 @@
 // 用C语言扩展内核
+#include <stdint.h>
 #include "stringio.h"
 
 // 声明near call 在asm中也要一致 防止程序跑飞
@@ -13,5 +14,25 @@ void __attribute__((cdecl)) startUp(void) {
     clearScreen();
     char* title = "WELCOME TO MY-OS \r\n";
     printPos(title, strlen(title), 8, 30);
-    for(;;);
+}
+
+void __attribute__((cdecl)) promptString(void) {
+	char*p_string = "MY-OS SHELL#>";
+	print(p_string);
+}
+
+void __attribute__((cdecl)) showHelp(void) {
+	char* help = "shell for MY-OS version 1.0 x86 PC\r\n"
+	             "Use `help` to see the list \r\n"
+	             "\r\n"
+	             "\rcls      - clear the ternimal \r\n"
+	             "\rtime     - get current time \r\n"
+	             "\rpoweroff - force the OS shut down"
+	             "\r\n";
+	print(help);
+}
+
+void __attribute__((cdecl)) shell(void) {
+	clearScreen();
+	showHelp();
 }

@@ -1,7 +1,9 @@
 ; 操作系统内核入口
 BITS 16
 
-[extern startUp] ; 在libc中的函数
+; 在libc中的函数
+[extern startUp]
+[extern shell]
 
 global _start
 _start:
@@ -13,5 +15,5 @@ KeyBoard:
     int 0x16
     cmp al, 0x0d
     jne KeyBoard ; 不是回车就一直等
-    ; call dword shell
+    call dword shell
     jmp KeyBoard
