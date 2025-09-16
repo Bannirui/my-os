@@ -1,7 +1,5 @@
-; liba.asm
 [BITS 16]
 global printPos
-global clearScreen
 
 ; void printPos(char* msg, uint16_t len, uint16_t row, uint16_t col);
 printPos:
@@ -39,11 +37,3 @@ printPos:
 
     popa
     ret ; 弹出栈ip 跳到段内ip偏移上 也就是调用的地方
-
-; void clearScreen();
-clearScreen:
-    push ax ; 下面要用到ax寄存器 先保存
-    mov ax, 0x0003
-    int 0x10
-    pop ax ; 恢复
-    ret
