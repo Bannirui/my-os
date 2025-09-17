@@ -419,11 +419,79 @@ Label_SVGA_Mode_Info_Finish:
     mov	cr0, eax
     jmp dword SelectorCode32:GO_TO_TMP_Protect
 
+[SECTION .s32]
+[BITS 32] ; 代码跑在32位保护模式下
+; 切换到IA-32e模式
+GO_TO_TMP_Protect:
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov ss, ax
+    mov esp, 0x7e00
+    call support_long_mode
+    test eax, eax
+    jz no_support
 
+; 配置页目录和页表
+    mov dword [0x90000], 0x91007
+    mov dword [0x90800], 0x91007
+    mov dword [0x91000], 0x92007
+    mov dword [0x92000], 0x000083
+    mov dword [0x92008], 0x200083
+    mov dword [0x92010], 0x400083
+    mov dword [0x92018], 0x600083
+    mov dword [0x92020], 0x800083
+    mov dword [0x92028], 0xa00083
+; 加载GDT
+    db 0x66
+    lgdt [GdtPtr64]
+; 初始化段寄存器
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
 
+    mov esp, 0x7e00
+; 打开地址扩展
+    mov eax, cr4
+    bts eax, 5
+    mov cr4, eax
+; 页目录首地址设置到crc3寄存器
+    mov eax, 0x90000
+    mov cr3, eax
+; 激活IA-32e长模式
+    mov ecx, 0x0c0000080
+    rdmsr
+    bts eax, 8
+    wrmsr
+; 使能分页
+    mov eax, cr0
+    bts eax, 0
+    bts eax, 31
+    mov cr0, eax
+; 从loader程序跳到kernel内核去
+    jmp SelectorCode64:OffsetOfKernelFile
 
-
-
+; 检测cpu支不支持ia-32e长模式
+support_long_mode:
+    mov eax, 0x80000000
+    cpuid
+    cmp eax, 0x80000001
+    setnb al
+    jb support_long_mode_done
+    mov eax, 0x80000001
+    cpuid
+    bt edx, 29
+    setc al
+support_long_mode_done:
+    movzx eax, al
+    ret
+; cpu不支持ia-32e长模式
+no_support:
+    jmp	$
 
 [SECTION .s16lib]
 [BITS 16] ; 跑在cpu 16位模式下
@@ -516,11 +584,6 @@ Label_DispAL:
     pop edx
     pop ecx
     ret
-
-[SECTION .s32]
-[BITS 32] ; 代码跑在32位保护模式下
-GO_TO_TMP_Protect:
-    jmp $
 
 ; IDT表
 IDT:
