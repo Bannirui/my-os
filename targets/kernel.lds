@@ -1,29 +1,31 @@
+OUTPUT_FORMAT("elf64-x86-64","elf64-x86-64","elf64-x86-64")
+OUTPUT_ARCH(i386:x86-64)
 ENTRY(_start)
+SECTIONS
+{
 
-SECTIONS {
-    . = 0x8000;              /* 起始加载地址 */
+	. = 0xffff800000000000 + 0x100000;
+	.text :
+	{
+		_text = .;
+		*(.text)
 
-    .text : ALIGN(4) {
-        /* 确保内核入口最前 */
-        build/kernel/kernel.o(.text)
-        /* 其他所有目标文件的代码段 */
-        build/kernel/*.o(.text)
-        *(.text*)
-    }
+		_etext = .;
+	}
+	. = ALIGN(8);
+	.data :
+	{
+		_data = .;
+		*(.data)
+		
+		_edata = .;
+	}
+	.bss :
+	{
+		_bss = .;
+		*(.bss)
+		_ebss = .;
+	}
 
-    .rodata : ALIGN(4) {
-        build/kernel/*.o(.rodata*)
-        *(.rodata*)
-    }
-
-    .data : ALIGN(4) {
-        build/kernel/*.o(.data*)
-        *(.data*)
-    }
-
-    .bss : ALIGN(4) {
-        build/kernel/*.o(.bss*)
-        *(.bss*)
-        *(COMMON)
-    }
+	_end = .;
 }
