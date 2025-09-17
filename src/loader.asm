@@ -129,8 +129,88 @@ Label_No_LoaderBin:
     mov bp, NoLoaderMessage
     int 0x10
     jmp $
+
+; kernel代码读到物理内存上
 Label_FileName_Found:
-    jmp $
+    mov ax, RootDirSectors
+    and di, 0xffe0
+    add di, 0x001a
+    mov cx, word [es:di]
+    push cx
+    add cx, ax
+    add cx, SectorBalance
+    mov eax, BaseTmpOfKernelAddr
+    mov es, eax
+    mov bx, OffsetTmpOfKernelFile
+    mov ax, cx
+Label_Go_On_Loading_File:
+    push ax
+    push bx
+    mov	ah, 0x0e
+    mov al, '.'
+    mov bl, 0x0f
+    int 10h
+    pop bx
+    pop ax
+
+    mov cl, 1
+    call Func_ReadOneSector
+    pop ax
+
+    push cx
+    push eax
+    push fs
+    push edi
+    push ds
+    push esi
+
+    mov cx, 0x200
+    mov ax, BaseOfKernelFile
+    mov fs, ax
+    mov edi, dword [OffsetOfKernelFileCount]
+
+    mov ax, BaseTmpOfKernelAddr
+    mov ds, ax
+    mov esi, OffsetTmpOfKernelFile
+Label_Mov_Kernel:
+    mov al, byte [ds:esi]
+    mov byte [fs:edi], al
+
+    inc esi
+    inc edi
+
+    loop Label_Mov_Kernel
+
+    mov eax, 0x1000
+    mov ds,	eax
+
+    mov dword [OffsetOfKernelFileCount], edi
+
+    pop esi
+    pop ds
+    pop edi
+    pop fs
+    pop eax
+    pop cx
+
+    call Func_GetFATEntry
+    cmp ax, 0x0fff
+    jz Label_File_Loaded
+    push ax
+    mov dx, RootDirSectors
+    add ax, dx
+    add ax, SectorBalance
+
+    jmp Label_Go_On_Loading_File
+
+; 打印调试
+Label_File_Loaded:
+    mov ax, 0xb800
+    mov gs, ax
+    mov ah, 0x0f ; 0000黑底 1111白字
+    mov al, 'G'
+    mov [gs:((80*0+39)*2)], ax ; 屏幕第0行 第39列。
+
 
 [SECTION .s16lib]
 [BITS 16] ; 跑在cpu 16位模式下
@@ -198,6 +278,7 @@ Label_Even_2:
 RootDirSizeForLoop dw RootDirSectors
 SectorNo dw 0
 Odd db 0
+OffsetOfKernelFileCount dd OffsetOfKernelFile
 
 ; 字符串
 StartLoaderMessage:
