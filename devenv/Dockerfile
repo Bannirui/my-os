@@ -1,49 +1,31 @@
-FROM --platform=linux/386 i386/ubuntu:16.04
+# 使用官方Ubuntu22.04作为基础镜像
+FROM ubuntu:22.04
 
+# 设置非交互模式 避免安装过程中阻塞
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TARGET=ia16-elf
-ENV PREFIX=/opt/gcc-ia16
-ENV PATH=$PREFIX/bin:$PATH
 
-# 安装构建依赖
-RUN apt-get update && apt-get install -y \
+# 更新源并安装所需工具
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    # gcc g++ make ld etc
     build-essential \
-    bison \
-    flex \
-    libgmp3-dev \
-    libmpc-dev \
-    libmpfr-dev \
-    texinfo \
-    wget \
-    curl \
-    xz-utils \
+    # x86 assembler
+    nasm \                  
+    # ld objdump objcopy
+    binutils \              
+    # mkfs dd支持
+    dosfstools \            
+    # mount umount sync
+    util-linux \
+    # cp rm等基础命令
+    coreutils \
     git \
-    nasm \
-    make \
-    binutils \
-    gdb \
-    vim \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# 构建 gcc-ia16
-RUN git clone --recurse-submodules https://github.com/tkchia/gcc-ia16.git /tmp/gcc-ia16 && \
-    cd /tmp/gcc-ia16 && \
-    mkdir build && cd build && \
-    ../configure \
-      --build=i386-linux-gnu \
-      --host=i386-linux-gnu \
-      --target=$TARGET \
-      --prefix=$PREFIX \
-      --disable-nls \
-      --enable-languages=c \
-      --without-headers \
-      --disable-libssp \
-      --disable-libstdcxx \
-    && make all-gcc -j$(nproc) \
-    && make install-gcc
-
 # 设置工作目录
-WORKDIR /root/dev
-VOLUME /root/dev
+VOLUME /home/dev
+WORKDIR /home/dev
 
+# 容器启动后保持交互 shell
 CMD ["/bin/bash"]
