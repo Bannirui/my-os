@@ -339,11 +339,42 @@ Label_Even_2:
     pop es
     ret
 
+; 打印调试
+Label_DispAL:
+    push ecx
+    push edx
+    push edi
+    mov edi, [DisplayPosition]
+    mov ah, 0x0f
+    mov dl, al
+    shr al, 4
+    mov ecx, 2
+.begin:
+    and al, 0x0f
+    cmp al, 9
+    ja .1
+    add al, '0'
+    jmp .2
+.1:
+    sub al, 0x0a
+    add al, 'A'
+.2:
+    mov [gs:edi], ax
+    add edi, 2
+    mov al, dl
+    loop .begin
+    mov [DisplayPosition], edi
+    pop edi
+    pop edx
+    pop ecx
+    ret
+
 ; 临时变量
 RootDirSizeForLoop dw RootDirSectors
 SectorNo dw 0
 Odd db 0
 OffsetOfKernelFileCount dd OffsetOfKernelFile
+DisplayPosition dd 0
 
 ; 字符串
 StartLoaderMessage:
