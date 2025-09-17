@@ -30,8 +30,8 @@ void __attribute__((cdecl)) showHelp(void) {
         "help\r\n"
         "clear\r\n"
         "time\r\n"
-        "protect-mode\r\n"
-        "power-off\r\n"
+        "protectMode\r\n"
+        "powerOff\r\n"
         "date\r\n";
     print(help);
 }
