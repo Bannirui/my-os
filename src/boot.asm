@@ -187,7 +187,7 @@ Label_Go_On_Reading:
 ; fat表项占12bit 每3个字节存储2个fat表项 fat表项具有奇偶性 根据当前fat表项索引出下一个fat表项
 Func_GetFATEntry:
     push es
-    pushbx
+    push bx
     push ax
     xor ax, ax
     mov es, ax

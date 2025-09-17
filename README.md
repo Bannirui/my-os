@@ -19,7 +19,7 @@
 
 以下命令全在项目根路径下执行
 
-- 启动docker容器`docker run --rm -it --name myos-dev -v $PWD:/home/dev myos-dev`
+- 启动docker容器`docker run --rm -it --privileged --name myos-dev -v $PWD:/home/dev myos-dev`
 - docker中执行编译`make`
 - 宿主机上执行`make run`
 
