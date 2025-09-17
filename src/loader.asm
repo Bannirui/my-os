@@ -398,6 +398,8 @@ Label_SVGA_Mode_Info_Finish:
     cli ; 先关闭BIOS的中断
     db 0x66
     lgdt [GdtPtr]
+    ; db 0x66
+    ; lidt [LIDT_POINTER]
     mov eax, cr0
     or eax, 1
     mov	cr0, eax
@@ -505,6 +507,15 @@ Label_DispAL:
 [BITS 32] ; 代码跑在32位保护模式下
 GO_TO_TMP_Protect:
     jmp $
+
+; IDT表
+IDT:
+    times 0x50 dq 0
+IDT_END:
+
+IDT_POINTER:
+    dw IDT_END-IDT-1
+    dd IDT
 
 ; 临时变量
 RootDirSizeForLoop dw RootDirSectors
