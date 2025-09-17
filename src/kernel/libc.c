@@ -22,12 +22,13 @@ void __attribute__((cdecl)) promptString(void) {
 }
 
 void __attribute__((cdecl)) showHelp(void) {
-	char* help = "shell for MY-OS version 1.0 x86 PC\r\n"
-	             "Use `help` to see the list \r\n"
-	             "\r\n"
-	             "\rcls      - clear the ternimal \r\n"
+	char* help = "MY-OS x86 PC\r\n"
+				 "\r\n"
+	             "SHELL\r\n"
+				 "\r\n"
+	             "\rcls      - clear the terminal \r\n"
 	             "\rtime     - get current time \r\n"
-	             "\rpoweroff - force the OS shut down"
+	             "\rpoweroff - os shut down"
 	             "\r\n";
 	print(help);
 }
