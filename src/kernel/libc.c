@@ -17,20 +17,23 @@ void __attribute__((cdecl)) startUp(void) {
 }
 
 void __attribute__((cdecl)) promptString(void) {
-	char*p_string = "MY-OS SHELL#>";
+	char* p_string = "MY-OS SHELL#>";
 	print(p_string);
 }
 
 void __attribute__((cdecl)) showHelp(void) {
-	char* help = "MY-OS x86 PC\r\n"
-				 "\r\n"
-	             "SHELL\r\n"
-				 "\r\n"
-	             "\rcls      - clear the terminal \r\n"
-	             "\rtime     - get current time \r\n"
-	             "\rpoweroff - os shut down"
-	             "\r\n";
-	print(help);
+	char* help =
+        "MY-OS x86 PC\r\n"
+        "\r\n"
+        "SHELL COMMAND\r\n"
+        "\r\n"
+        "help\r\n"
+        "clear\r\n"
+        "time\r\n"
+        "protect-mode\r\n"
+        "power-off\r\n"
+        "date\r\n";
+    print(help);
 }
 
 void __attribute__((cdecl)) shell(void) {

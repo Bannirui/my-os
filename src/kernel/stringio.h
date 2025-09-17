@@ -12,6 +12,7 @@ uint16_t strlen(char* str) {
 
 void print(char* str){
 	while (*str) {
-        putChar(*str++);
+        putChar(*str);
+		str++;
     }
 }
