@@ -211,6 +211,71 @@ Label_File_Loaded:
     mov al, 'G'
     mov [gs:((80*0+39)*2)], ax ; 屏幕第0行 第39列。
 
+; kernel程序被加载到了内存 软驱的使命完成了 后面不需要使用软驱了 可以关闭软驱
+KillMotor:
+    push dx
+    mov dx, 0x03f2
+    mov al, 0
+    out dx, al
+    pop dx
+
+; 内核程序不需要再借助内存临时转存了 这块临时转存空间用来记录物理地址空间信息
+    mov ax, 0x1301
+    mov bx, 0x000F
+    mov dx, 0x0400 ;row 4
+    mov cx, 24
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, StartGetMemStructMessage
+    int 0x10
+
+    xor ebx, ebx
+    xor ax, ax
+    mov es, ax
+    mov di, MemoryStructBufferAddr
+Label_Get_Mem_Struct:
+    mov eax, 0x0e820
+    mov ecx, 20
+    mov edx, 0x534d4150
+    int 0x15
+    jc Label_Get_Mem_Fail
+    add di, 20
+
+    cmp ebx, 0
+    jne Label_Get_Mem_Struct
+    jmp Label_Get_Mem_OK
+Label_Get_Mem_Fail:
+    mov ax, 0x1301
+    mov bx, 0x008c
+    mov dx, 0x0500 ;row 5
+    mov cx, 23
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, GetMemStructErrMessage
+    int 0x10
+    jmp $
+Label_Get_Mem_OK:
+    mov ax, 0x1301
+    mov bx, 0x000f
+    mov dx, 0x0600 ;row 6
+    mov cx, 29
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, GetMemStructOKMessage
+    int 0x10
+
+
+
+
+
+
+
 
 [SECTION .s16lib]
 [BITS 16] ; 跑在cpu 16位模式下
@@ -287,3 +352,9 @@ NoLoaderMessage:
     db "ERROR:No KERNEL Found"
 KernelFileName:
     db "KERNEL  BIN",0
+StartGetMemStructMessage:
+    db "Start Get Memory Struct."
+GetMemStructErrMessage:
+    db "Get Memory Struct ERROR"
+GetMemStructOKMessage:
+    db "Get Memory Struct SUCCESSFUL!"
