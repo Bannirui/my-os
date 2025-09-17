@@ -21,7 +21,7 @@ LABEL_DESC_DATA32:
     dd 0x0000FFFF,0x00CF9200
 GdtLen equ $-LABEL_GDT
 GdtPtr dw GdtLen-1
-dd LABEL_GDT
+       dd LABEL_GDT
 SelectorCode32 equ LABEL_DESC_CODE32-LABEL_GDT
 SelectorData32 equ LABEL_DESC_DATA32-LABEL_GDT
 
@@ -270,6 +270,138 @@ Label_Get_Mem_OK:
     mov bp, GetMemStructOKMessage
     int 0x10
 
+; SVGA信息
+    mov ax, 0x1301
+    mov bx, 0x000f
+    mov dx, 0x0800 ; row 8
+    mov cx, 23
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, StartGetSVGAVBEInfoMessage
+    int 0x10
+
+    xor ax, ax
+    mov es, ax
+    mov di, 0x8000
+    mov ax, 0x4f00
+    int 0x10
+    cmp ax, 0x004f
+    jz .KO
+
+; 获取SVGA失败
+    mov ax, 0x1301
+    mov bx, 0x008c
+    mov dx, 0x0900 ; row 9
+    mov cx, 23
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, GetSVGAVBEInfoErrMessage
+    int 0x10
+    jmp $
+
+.KO:
+    mov ax, 0x1301
+    mov bx, 0x000f
+    mov dx, 0x0a00 ; row 10
+    mov cx, 29
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, GetSVGAVBEInfoOKMessage
+    int 0x10
+
+; SVGA模式
+    mov ax, 0x1301
+    mov bx, 0x000f
+    mov dx, 0x0c00 ;row 12
+    mov cx, 24
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, StartGetSVGAModeInfoMessage
+    int 0x10
+
+    xor ax, ax
+    mov es, ax
+    mov si, 0x800e
+
+    mov esi, dword [es:si]
+    mov edi, 0x8200
+Label_SVGA_Mode_Info_Get:
+    mov cx, word [es:esi]
+
+; 打印SVGA模式
+    push ax
+    xor ax, ax
+    mov al, ch
+    call Label_DispAL
+
+    xor ax, ax
+    mov al, cl
+    call Label_DispAL
+    pop ax
+
+    cmp cx, 0xffff
+    jz Label_SVGA_Mode_Info_Finish
+
+    mov ax, 0x4f01
+    int 0x10
+
+    cmp ax, 0x004f
+
+    jnz Label_SVGA_Mode_Info_FAIL
+
+    add esi, 2
+    add edi, 0x100
+
+    jmp Label_SVGA_Mode_Info_Get
+Label_SVGA_Mode_Info_FAIL:
+    mov ax, 0x1301
+    mov bx, 0x008c
+    mov dx, 0x0d00 ; row 13
+    mov cx, 24
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, GetSVGAModeInfoErrMessage
+    int 0x10
+Label_SET_SVGA_Mode_VESA_VBE_FAIL:
+    jmp $
+Label_SVGA_Mode_Info_Finish:
+    mov ax, 0x1301
+    mov bx, 0x000f
+    mov dx, 0x0e00 ; row 14
+    mov cx, 30
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, GetSVGAModeInfoOKMessage
+    int 0x10
+
+; 设置SVGA模式
+    mov ax, 0x4f02
+    mov bx, 0x4180
+    int 0x10
+
+    cmp ax, 0x004f
+    jnz	Label_SET_SVGA_Mode_VESA_VBE_FAIL
+
+; 初始化IDT GDT进入保护模式
+    cli ; 先关闭BIOS的中断
+    db 0x66
+    lgdt [GdtPtr]
+    mov eax, cr0
+    or eax, 1
+    mov	cr0, eax
+    jmp dword SelectorCode32:GO_TO_TMP_Protect
 
 
 
@@ -369,6 +501,11 @@ Label_DispAL:
     pop ecx
     ret
 
+[SECTION .s32]
+[BITS 32] ; 代码跑在32位保护模式下
+GO_TO_TMP_Protect:
+    jmp $
+
 ; 临时变量
 RootDirSizeForLoop dw RootDirSectors
 SectorNo dw 0
@@ -389,3 +526,17 @@ GetMemStructErrMessage:
     db "Get Memory Struct ERROR"
 GetMemStructOKMessage:
     db "Get Memory Struct SUCCESSFUL!"
+
+StartGetSVGAVBEInfoMessage:
+    db "Start Get SVGA VBE Info"
+GetSVGAVBEInfoErrMessage:
+    db "Get SVGA VBE Info ERROR"
+GetSVGAVBEInfoOKMessage:
+    db "Get SVGA VBE Info SUCCESSFUL!"
+
+StartGetSVGAModeInfoMessage:
+    db "Start Get SVGA Mode Info"
+GetSVGAModeInfoErrMessage:
+    db "Get SVGA Mode Info ERROR"
+GetSVGAModeInfoOKMessage:
+    db "Get SVGA Mode Info SUCCESSFUL!"
