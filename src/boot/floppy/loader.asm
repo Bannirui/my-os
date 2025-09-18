@@ -4,21 +4,21 @@ jmp Label_Start
 
 %include "fat12.inc"
 
-BaseOfKernelFile equ 0x00
-OffsetOfKernelFile equ 0x100000
+BaseOfKernelFile equ 0
+OffsetOfKernelFile equ 0x100000 ; 内核代码放在物理地址0x100_000上
 
 BaseTmpOfKernelAddr equ 0x9000
-OffsetTmpOfKernelFile equ 0x0000
+OffsetTmpOfKernelFile equ 0
 
-MemoryStructBufferAddr equ 0x7E00
+MemoryStructBufferAddr equ 0x7e00
 
 [SECTION gdt]
 LABEL_GDT:
-    dd 0,0
+    dd 0, 0
 LABEL_DESC_CODE32:
-    dd 0x0000FFFF,0x00CF9A00
+    dd 0x0000ffff, 0x00cf9a00
 LABEL_DESC_DATA32:
-    dd 0x0000FFFF,0x00CF9200
+    dd 0x0000ffff, 0x00cf9200
 GdtLen equ $-LABEL_GDT
 GdtPtr dw GdtLen-1
        dd LABEL_GDT
@@ -27,7 +27,7 @@ SelectorData32 equ LABEL_DESC_DATA32-LABEL_GDT
 
 [SECTION gdt64]
 LABEL_GDT64:
-    dq 0x0000000000000000
+    dq 0
 LABEL_DESC_CODE64:
     dq 0x0020980000000000
 LABEL_DESC_DATA64:
@@ -48,7 +48,7 @@ Label_Start:
 	mov ss, ax ; 10000:0000
     xor sp, sp
 
-	mov ax, 0xB800 ; 用显存打印字符串
+	mov ax, 0xb800 ; 用显存打印字符串
 	mov gs, ax
 
 ; 打印字符串调试
@@ -235,7 +235,7 @@ KillMotor:
 
 ; 内核程序不需要再借助内存临时转存了 这块临时转存空间用来记录物理地址空间信息
     mov ax, 0x1301
-    mov bx, 0x000F
+    mov bx, 0x000f
     mov dx, 0x0400 ;row 4
     mov cx, 24
     push ax
