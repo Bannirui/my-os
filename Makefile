@@ -52,6 +52,7 @@ dist/floppy.img: build/boot/floppy/boot.bin build/boot/floppy/loader.bin build/k
 	mkfs.vfat $@
 	# 0#扇区
 	dd if=build/boot/floppy/boot.bin of=$@ conv=notrunc bs=512 count=1
+	# 烧录loader程序到软盘
 	# 指定待挂载目录media 磁盘文件类型 负责把文件描述成磁盘分区
 	mount $@ dist/mnt -t vfat -o loop
 	cp build/boot/floppy/loader.bin dist/mnt

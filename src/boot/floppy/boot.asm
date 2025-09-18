@@ -35,7 +35,7 @@ L_Start:
     mov ax, 0x1301 ; 功能号
     mov bx, 0x000f
     xor dx, dx
-    mov cx, 0x10
+    mov cx, 10
     push ax
     mov ax, ds
     mov es, ax
@@ -136,7 +136,6 @@ Label_Go_On_Loading_File:
     add ax, SectorBalance
     add bx, [BPB_BytesPerSec]
     jmp Label_Go_On_Loading_File
-
 Label_File_Loaded:
     jmp BaseOfLoader:OffsetOfLoader ; loader程序放在0x10000上 跳过去
 
@@ -212,12 +211,9 @@ SectorNo dw 0 ; 读盘的时候要知道读哪个扇区 0-based
 Odd db 0
 
 ; 字符串
-StartBootMessage:
-    db "START BOOT"
-NoLoaderMessage:
-    db "ERROR:No LOADER Found"
-LoaderFileName:
-    db "LOADER  BIN", 0 ; 定义字符串 这个是用来跟fat12根目录区里面读到的文件名比较的 0是字符串结束符 在根目录中文件名的规则是8+3 前8字节是文件名 后3字节是扩展名
+StartBootMessage: db "START BOOT"
+NoLoaderMessage: db "ERROR:No LOADER Found"
+LoaderFileName: db "LOADER  BIN", 0 ; 定义字符串 这个是用来跟fat12根目录区里面读到的文件名比较的 0是字符串结束符 在根目录中文件名的规则是8+3 前8字节是文件名 后3字节是扩展名
 
 ; 启动盘引导扇区
     times 510-($-$$) db 0
