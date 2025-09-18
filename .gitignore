@@ -56,9 +56,7 @@ dkms.conf
 .vscode
 *.bin
 
-*.s
 *.img
-/kernel/system
 
 # cmake构建目录
 [Bb][Uu][Ii][Ll][Dd]/

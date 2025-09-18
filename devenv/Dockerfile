@@ -1,5 +1,5 @@
 # 使用官方Ubuntu22.04作为基础镜像
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
 # 设置非交互模式 避免安装过程中阻塞
 ENV DEBIAN_FRONTEND=noninteractive
