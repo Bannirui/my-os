@@ -1,4 +1,4 @@
-; BIOS引导程序
+; BIOS引导程序 放在磁盘引导扇区被加载
 org 0x7c00
 
 BaseOfStack equ 0x7c00
@@ -7,33 +7,11 @@ BaseOfStack equ 0x7c00
 BaseOfLoader equ 0x1000
 OffsetOfLoader equ 0
 
-RootDirSectors equ 14 ; 根目录扇区数
-SectorNumOfRootDirStart equ 19 ; 根目录起始扇区号 0-based
-SectorNumOfFAT1Start equ 1 ; fat1表起扇区号 0-based
-SectorBalance equ 17
+; 在FAT12引导扇区开头 必须是EB xx 90 EB是jmp指令保证跳过fat12的BPB直接执行代码 90中nop负责占位保证3字节固定格式
+jmp L_Start
+nop
 
-    ; 段内跳
-    jmp short L_Start
-	nop
-	BS_OEMName db 'MINEboot'
-	BPB_BytesPerSec dw 512
-	BPB_SecPerClus db 1
-	BPB_RsvdSecCnt dw 1
-	BPB_NumFATs db 2
-	BPB_RootEntCnt dw 224
-	BPB_TotSec16 dw 2880
-	BPB_Media db 0xf0
-	BPB_FATSz16 dw 9
-	BPB_SecPerTrk dw 18
-	BPB_NumHeads dw 2
-	BPB_HiddSec dd 0
-	BPB_TotSec32 dd 0
-	BS_DrvNum db 0
-	BS_Reserved1 db 0
-	BS_BootSig db 0x29
-	BS_VolID dd 0
-	BS_VolLab db 'BOOT LOADER'
-	BS_FileSysType db 'FAT12   '
+%include "fat12.inc" ; 这里面是fat12的BPB 必须在引导扇区的偏移3上紧跟着jmp和nop
 
 L_Start:
 ; 标准设置寄存器
