@@ -1,4 +1,4 @@
-; BIOS引导程序 放在磁盘引导扇区被加载
+; BIOS引导程序 放在磁盘引导扇区被加载 这个程序负责把loader程序从磁盘读到内存0x8000上然后跳过去
 org 0x7c00
 
 BaseOfStack equ 0x7c00
@@ -24,7 +24,7 @@ L_Start:
     mov ax, 0x0600
     mov bx, 0x0700
     mov cx, 0
-    mov dx, 0x184f
+    mov dx, 0x184f ; 文本模式 80行*25列
     int 0x10
 ; 光标设置
     mov ax, 0x0200
@@ -32,7 +32,7 @@ L_Start:
     xor dx, dx
     int 0x10
 ; 打印调试
-    mov ax, 0x1301
+    mov ax, 0x1301 ; 功能号
     mov bx, 0x000f
     xor dx, dx
     mov cx, 0x10
@@ -46,37 +46,40 @@ L_Start:
     xor ah, ah
     xor dl, dl
     int 0x13
-; 通过文件系统读软盘里面的loader程序
+; 通过文件系统读软盘里面的loader程序 下面封装BIOS中断开始读盘 fat12根目录的扇区是19#
     mov word [SectorNo], SectorNumOfRootDirStart
+
+; fat12根目录共14个扇区 轮询查找
 Lable_Search_In_Root_Dir_Begin:
     cmp word [RootDirSizeForLoop], 0
     jz Label_No_LoaderBin
     dec word [RootDirSizeForLoop]
+    ; 准备读扇区数据到内存上的参数 从19扇区开始找读到0x8000上
     xor ax, ax
-    mov es, ax
-    mov bx, 0x8000
+    mov es, ax ; es=0
+    mov bx, 0x8000 ; bx=0x8000 把磁盘数据读到内存es:bx上
     mov ax, [SectorNo]
-    mov cl, 1
+    mov cl, 1 ; 读1个扇区
     call Func_ReadOneSector ; near call
     mov si, LoaderFileName
     mov di, 0x8000
-    cld
-    mov dx, 0x10
+    cld ; 下面要在循环里面比较字符串 此时在0x8000上放着的是从根目录读到的文件名 要保证比较字符串方向是从0x8000低地址空间到高地址空间
+    mov dx, 0x10 ; 16表示的是1个根目录扇区有16个根目录项目 也就是说这边会套2层循环 外层是16个目录项 内层是每个文件名称11字节 跟LOADER BIN比较找到loader程序
 Label_Search_For_LoaderBin:
     cmp dx, 0
     jz Label_Goto_Next_Sector_In_Root_Dir
     dec dx
-    mov cx, 11
+    mov cx, 11 ; 11表示是的文件名+扩展名长度是11
 Label_Cmp_FileName:
     cmp cx, 0
     jz Label_FileName_Found
     dec cx
-    lodsb
+    lodsb ; 拿到ds:si的字符放到al里面 就是目标文件名的字符 然后跟扇区根目录的文件名比较
     cmp al, byte [es:di]
     jz Label_Go_On
     jmp Label_Different
 Label_Go_On:
-    inc di
+    inc di ; 指向内存上的指针后移 准备比较扇区中根目录里面拿到的文件名的下一个字符
     jmp Label_Cmp_FileName
 Label_Different:
     and di, 0xffe0
@@ -87,7 +90,7 @@ Label_Goto_Next_Sector_In_Root_Dir:
     add word [SectorNo], 1
     jmp Lable_Search_In_Root_Dir_Begin
 
-; 找不到loader程序
+; 找不到loader程序 打印提示信息然后夯在这
 Label_No_LoaderBin:
     mov ax, 0x1301
     mov bx, 0x008c
@@ -135,8 +138,12 @@ Label_Go_On_Loading_File:
     jmp Label_Go_On_Loading_File
 
 Label_File_Loaded:
-    jmp BaseOfLoader:OffsetOfLoader
+    jmp BaseOfLoader:OffsetOfLoader ; loader程序放在0x10000上 跳过去
 
+; 把1个扇区读到内存上
+; 入参 ax-扇区编号 读哪个扇区
+;     cl-读几个扇区
+;     es:bx-磁盘数据读到内存的位置
 Func_ReadOneSector:
     push bp
     mov bp, sp
@@ -200,8 +207,8 @@ Label_Even_2:
     ret
 
 ; 临时变量
-RootDirSizeForLoop dw RootDirSectors
-SectorNo dw 0
+RootDirSizeForLoop dw RootDirSectors ; fat12根目录占14个扇区
+SectorNo dw 0 ; 读盘的时候要知道读哪个扇区 0-based
 Odd db 0
 
 ; 字符串
@@ -210,7 +217,7 @@ StartBootMessage:
 NoLoaderMessage:
     db "ERROR:No LOADER Found"
 LoaderFileName:
-    db "LOADER  BIN", 0
+    db "LOADER  BIN", 0 ; 定义字符串 这个是用来跟fat12根目录区里面读到的文件名比较的 0是字符串结束符 在根目录中文件名的规则是8+3 前8字节是文件名 后3字节是扩展名
 
 ; 启动盘引导扇区
     times 510-($-$$) db 0

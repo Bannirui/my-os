@@ -6,8 +6,9 @@
 ; 长度固定
 
 ; 编译期常量替换
-RootDirSectors equ 14 ; 根目录扇区数
-SectorNumOfRootDirStart equ 19 ; 根目录起始扇区号 0-based
+RootDirSectors equ 14 ; 根目录有多少个扇区
+; 根目录起始扇区号 0-based 2个fat表每个表占9个扇区+保留1个扇区不用=19个扇区 也就是[0...18] 那么根目录的第一个扇区是19#
+SectorNumOfRootDirStart equ 19
 SectorNumOfFAT1Start equ 1 ; fat1表起扇区号 0-based
 SectorBalance equ 17
 

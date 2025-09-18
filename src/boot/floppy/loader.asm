@@ -1,5 +1,5 @@
 ; loader负责 硬件检测 cpu模式切换 向内核传递数据
-org 10000h
+org 0x10000
 jmp Label_Start
 
 %include "fat12.inc"
