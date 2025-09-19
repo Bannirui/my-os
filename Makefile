@@ -44,26 +44,22 @@ build/kernel/%.bin: build/kernel/%.elf
 dist/floppy.img: build/boot/floppy/boot.bin build/boot/floppy/loader.bin build/kernel/kernel.bin
 	rm -rf dist
 	mkdir dist
-	# 用来挂载的空目录
-	mkdir -p dist/mnt
 	# 1.44MB空镜像
 	dd if=/dev/zero of=$@ bs=512 count=2880
-	# 格式化为FAT12
-	mkfs.vfat $@
 	# 0#扇区
 	dd if=build/boot/floppy/boot.bin of=$@ conv=notrunc bs=512 count=1
-	# 烧录loader程序到软盘
+	# 烧录loader程序和kernel程序到软盘
+	# 用来挂载的空目录
+	mkdir -p dist/mnt
 	# 指定待挂载目录media 磁盘文件类型 负责把文件描述成磁盘分区
-	mount $@ dist/mnt -t vfat -o loop
-	cp build/boot/floppy/loader.bin dist/mnt
+	mount $@ dist/mnt/ -t vfat -o loop
+	rm -rf dist/mnt/*
+	cp build/boot/floppy/loader.bin dist/mnt/
+	cp build/kernel/kernel.bin dist/mnt
 	# 强制同步
 	sync
 	umount dist/mnt
-	# 烧录kernel程序到软盘
-	mount $@ dist/mnt -t vfat -o loop
-	cp build/kernel/kernel.bin dist/mnt
-	sync
-	umount dist/mnt
+	rmdir dist/mnt
 
 run: dist/floppy.img
 	qemu-system-x86_64 -fda dist/floppy.img -boot a

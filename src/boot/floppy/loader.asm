@@ -1,34 +1,64 @@
 ; loader负责 硬件检测 cpu模式切换 向内核传递数据
 org 0x10000
-jmp Label_Start
+    jmp Label_Start
 
 %include "fat12.inc"
 
+; 16位实模式下寻址方式 段寄存器<<4+偏移 0<<4+0x100000 把kernel程序要放到1M地址空间上去 将来内核程序的运行肯定是在平台模型线性地址空间的
 BaseOfKernelFile equ 0
 OffsetOfKernelFile equ 0x100000 ; 内核代码放在物理地址0x100_000上
-
+; 16位实模式下还不能突破1M空间限制 从磁盘把内核程序加载到内存上不是一步到位放到1M地址空间 先在1M内空间暂存然后再复制过去
 BaseTmpOfKernelAddr equ 0
 OffsetTmpOfKernelFile equ 0x7e00
 
-MemoryStructBufferAddr equ 0x7e00
+MemoryStructBufferAddr equ OffsetTmpOfKernelFile ; 放在这个地址上的内核程序被挪到1M地址上后 这块临时转存空间就没有用了 就用来记录物理地址空间信息
+
+; 规划GDT表 这个表里面每一项是一个描述符 用来描述内存空间段的段描述符 每个描述符8字节 也就是GDT表每个表项8字节
+; 剩下问题就是这个表可以规划放多少个表项 表是用来检索用的 将来靠着段选择子来检索表项 现在的cs寄存器就是将来的段选择子 CS的16位中高13位放index 那么index最大能表达的数组脚标就是(1<<13)-1=8191 也就说GDT表最多也就8192个表项
+; 一般情况GDT表就定义代码段跟数据段就足够了 把它们定义成基址是0 界限是4G的 拉满整个平坦模型 后面用分页真正进行内存的隔离保护
+; 32位下的GDT表段描述符
+; 63                        56 55   52 51   48 47        40 39        32
+;+----------------------------+-------+------+------------+------------+
+;|       Base 31:24           | G AVL | D/B  | Limit19:16 | AccessByte |
+;+----------------------------+-------+------+------------+------------+
+;|        Base 23:16          |               Base 15:0                |
+;+----------------------------+----------------------------------------+
+;|                          Limit 15:0                                |
+;+---------------------------------------------------------------------+
+; 15                           8 7                                     0
 
 [SECTION gdt]
-LABEL_GDT: dd 0, 0
-LABEL_DESC_CODE32: dd 0x0000ffff, 0x00cf9a00
-LABEL_DESC_DATA32: dd 0x0000ffff, 0x00cf9200
-GdtLen equ $-LABEL_GDT
-GdtPtr dw GdtLen-1
-       dd LABEL_GDT
-SelectorCode32 equ LABEL_DESC_CODE32-LABEL_GDT
-SelectorData32 equ LABEL_DESC_DATA32-LABEL_GDT
+LABEL_GDT: dd 0, 0 ; intel规范规定GDT表的第1个表项必须是0
+LABEL_DESC_CODE32: dd 0x0000ffff, 0x00cf9a00 ; 代码段 基址0 界限4G
+LABEL_DESC_DATA32: dd 0x0000ffff, 0x00cf9200 ; 数据段 基址0 界限4G
+GdtLen equ $-LABEL_GDT ; GDT表的大小是多少个字节
+; 要把GDT表的信息告诉寄存器 一个GDT表的元信息就两个 共6字节
+; 2字节=GDT表的表长-1
+; 4字节=GDT表的基地址
+GdtPtr: dw GdtLen-1
+        dd LABEL_GDT
+; 段选择子 高13位放GDT表的数组脚标 TI(0是GDT 1是LDT) RPL(ring0内核态 ring3用户态)
+SelectorCode32 equ ((((LABEL_DESC_CODE32-LABEL_GDT)/8) <<3) | (0<<2) | 0) ; 代码段的段选择子
+SelectorData32 equ ((((LABEL_DESC_DATA32-LABEL_GDT)/8)<<3) | (0<<2) | 0) ; 数据段的段选择子
 
+; 64位下的GDT表段描述符
+; 63                      56 55  52 51  48 47    40 39      32
+;+-------------------------+------+------+--------+----------+
+;|     Base 31:24          | GAVL | L  D | Limit |  Access  |
+;+-------------------------+------+------+--------+----------+
+;|           Base 23:16    |           Base 15:0             |
+;+-------------------------+---------------------------------+
+;|                      Limit 15:0                          |
+;+----------------------------------------------------------+
+; 15                       8 7                               0
+; 64位已经没有了内存段的概念了 GDT表的段描述符退化成了权限/模式管理的门票
 [SECTION gdt64]
-LABEL_GDT64: dq 0
-LABEL_DESC_CODE64: dq 0x0020980000000000
-LABEL_DESC_DATA64: dq 0x0000920000000000
+LABEL_GDT64: dq 0 ; 跟32位GDT一样 第1个表项是0
+LABEL_DESC_CODE64: dq 0x0020980000000000 ; 内核代码段
+LABEL_DESC_DATA64: dq 0x0000920000000000 ; 内核数据段
 GdtLen64 equ $-LABEL_GDT64
-GdtPtr64 dw GdtLen64-1
-         dd LABEL_GDT64
+GdtPtr64: dw GdtLen64-1
+          dd LABEL_GDT64
 SelectorCode64 equ LABEL_DESC_CODE64-LABEL_GDT64
 SelectorData64 equ LABEL_DESC_DATA64-LABEL_GDT64
 
@@ -60,20 +90,19 @@ Label_Start:
     or al, 00000010b
 	out 0x92, al
     pop ax
-    cli
-    lgdt [GdtPtr]
+    cli ; 关闭BIOS的中断
+    lgdt [GdtPtr] ; 3字节描述了GDT表的元信息 自此从寄存器gdtr就可以拿到GDT表的信息
 
     mov eax, cr0
     or eax, 1
     mov cr0, eax
 
     mov ax, SelectorData32
-    mov fs, ax
+    mov fs, ax ; fs指向数据段选择子
     mov eax, cr0
     and al, 11111110b
     mov cr0, eax
-
-    sti
+    sti ; 跟上面的cli成对使用 打开BIOS的中断
 
 ; 重置软驱
     xor ah, ah
