@@ -35,7 +35,7 @@ L_Start:
     mov ax, 0x1301 ; 功能号
     mov bx, 0x000f
     xor dx, dx
-    mov cx, 10
+    mov cx, StartBootMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -95,7 +95,7 @@ Label_No_LoaderBin:
     mov ax, 0x1301
     mov bx, 0x008c
     mov dx, 0x0100
-    mov cx, 21
+    mov cx, NoLoaderMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -212,7 +212,9 @@ Odd db 0
 
 ; 字符串
 StartBootMessage: db "START BOOT"
-NoLoaderMessage: db "ERROR:No LOADER Found"
+StartBootMessageLen equ $-StartBootMessage
+NoLoaderMessage: db "ERROR: No LOADER Found"
+NoLoaderMessageLen equ $-NoLoaderMessage
 LoaderFileName: db "LOADER  BIN", 0 ; 定义字符串 这个是用来跟fat12根目录区里面读到的文件名比较的 0是字符串结束符 在根目录中文件名的规则是8+3 前8字节是文件名 后3字节是扩展名
 
 ; 启动盘引导扇区

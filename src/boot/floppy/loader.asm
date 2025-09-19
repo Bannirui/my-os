@@ -76,7 +76,7 @@ Label_Start:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dx, 0x0200
-    mov cx, 12
+    mov cx, StartLoaderMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -158,7 +158,7 @@ Label_No_LoaderBin:
     mov ax, 0x1301
     mov bx, 0x008c
     mov dx, 0x0300 ; row 3
-    mov cx, 21
+    mov cx, NoLoaderMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -257,7 +257,7 @@ KillMotor:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dx, 0x0400 ;row 4
-    mov cx, 44
+    mov cx, StartGetMemStructMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -286,7 +286,7 @@ Label_Get_Mem_Fail:
     mov ax, 0x1301
     mov bx, 0x008c
     mov dx, 0x0500 ;row 5
-    mov cx, 23
+    mov cx, GetMemStructErrMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -297,7 +297,7 @@ Label_Get_Mem_OK:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dx, 0x0600 ;row 6
-    mov cx, 29
+    mov cx, GetMemStructOKMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -309,7 +309,7 @@ Label_Get_Mem_OK:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dx, 0x0800 ; row 8
-    mov cx, 23
+    mov cx, StartGetSVGAVBEInfoMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -329,7 +329,7 @@ Label_Get_Mem_OK:
     mov ax, 0x1301
     mov bx, 0x008c
     mov dx, 0x0900 ; row 9
-    mov cx, 23
+    mov cx, GetSVGAVBEInfoErrMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -341,7 +341,7 @@ Label_Get_Mem_OK:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dx, 0x0a00 ; row 10
-    mov cx, 29
+    mov cx, GetSVGAVBEInfoOKMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -353,7 +353,7 @@ Label_Get_Mem_OK:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dx, 0x0c00 ;row 12
-    mov cx, 24
+    mov cx, StartGetSVGAModeInfoMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -400,7 +400,7 @@ Label_SVGA_Mode_Info_FAIL:
     mov ax, 0x1301
     mov bx, 0x008c
     mov dx, 0x0d00 ; row 13
-    mov cx, 24
+    mov cx, GetSVGAModeInfoErrMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -413,7 +413,7 @@ Label_SVGA_Mode_Info_Finish:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dx, 0x0e00 ; row 14
-    mov cx, 30
+    mov cx, GetSVGAModeInfoOKMessageLen
     push ax
     mov ax, ds
     mov es, ax
@@ -621,18 +621,28 @@ SVGAModeCounter dd 0
 DisplayPosition dd 0
 
 ; 字符串
-StartLoaderMessage: db "START LOADER"
-test: db "test"
-NoLoaderMessage: db "ERROR:No KERNEL Found"
+StartLoaderMessage: db "START LOADER..."
+StartLoaderMessageLen equ $-StartLoaderMessage
+NoLoaderMessage: db "ERROR: No KERNEL Found"
+NoLoaderMessageLen equ $-NoLoaderMessage
 KernelFileName: db "KERNEL  BIN", 0 ; 字符串长度11 文件名 扩展名 结束符\0
-StartGetMemStructMessage: db "Start Get Memory Struct."
+StartGetMemStructMessage: db "Start Get Memory Struct"
+StartGetMemStructMessageLen equ $-StartGetMemStructMessage
 GetMemStructErrMessage: db "Get Memory Struct ERROR"
+GetMemStructErrMessageLen equ $-GetMemStructErrMessage
 GetMemStructOKMessage: db "Get Memory Struct SUCCESSFUL!"
+GetMemStructOKMessageLen equ $-GetMemStructOKMessage
 
 StartGetSVGAVBEInfoMessage: db "Start Get SVGA VBE Info"
+StartGetSVGAVBEInfoMessageLen equ $-StartGetSVGAVBEInfoMessage
 GetSVGAVBEInfoErrMessage: db "Get SVGA VBE Info ERROR"
+GetSVGAVBEInfoErrMessageLen equ $-GetSVGAVBEInfoErrMessage
 GetSVGAVBEInfoOKMessage: db "Get SVGA VBE Info SUCCESSFUL!"
+GetSVGAVBEInfoOKMessageLen equ $-GetSVGAVBEInfoOKMessage
 
 StartGetSVGAModeInfoMessage: db "Start Get SVGA Mode Info"
+StartGetSVGAModeInfoMessageLen equ $-StartGetSVGAModeInfoMessage
 GetSVGAModeInfoErrMessage: db "Get SVGA Mode Info ERROR"
+GetSVGAModeInfoErrMessageLen equ $-GetSVGAModeInfoErrMessage
 GetSVGAModeInfoOKMessage: db "Get SVGA Mode Info SUCCESSFUL!"
+GetSVGAModeInfoOKMessageLen equ $-GetSVGAModeInfoOKMessage
