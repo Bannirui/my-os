@@ -34,7 +34,8 @@ L_Start:
 ; 打印调试
     mov ax, 0x1301 ; 功能号
     mov bx, 0x000f
-    xor dx, dx
+    mov dh, StartBootMessageRow ; 打印在第几行
+    xor dl, dl
     mov cx, StartBootMessageLen
     push ax
     mov ax, ds
@@ -94,7 +95,8 @@ Label_Goto_Next_Sector_In_Root_Dir:
 Label_No_LoaderBin:
     mov ax, 0x1301
     mov bx, 0x008c
-    mov dx, 0x0100
+    mov dx, NoLoaderMessageRow ; 打印在第几行
+    xor dl, dl
     mov cx, NoLoaderMessageLen
     push ax
     mov ax, ds
@@ -210,12 +212,15 @@ RootDirSizeForLoop dw RootDirSectors ; fat12根目录占14个扇区
 SectorNo dw 0 ; 读盘的时候要知道读哪个扇区 0-based
 Odd db 0
 
-; 字符串
+LoaderFileName: db "LOADER  BIN", 0 ; 定义字符串 这个是用来跟fat12根目录区里面读到的文件名比较的 0是字符串结束符 在根目录中文件名的规则是8+3 前8字节是文件名 后3字节是扩展名
+; 要显示的字符串 长度 显示在第几行
 StartBootMessage: db "START BOOT"
 StartBootMessageLen equ $-StartBootMessage
+StartBootMessageRow equ 0
+
 NoLoaderMessage: db "ERROR: No LOADER Found"
 NoLoaderMessageLen equ $-NoLoaderMessage
-LoaderFileName: db "LOADER  BIN", 0 ; 定义字符串 这个是用来跟fat12根目录区里面读到的文件名比较的 0是字符串结束符 在根目录中文件名的规则是8+3 前8字节是文件名 后3字节是扩展名
+NoLoaderMessageRow equ 1
 
 ; 启动盘引导扇区
     times 510-($-$$) db 0
