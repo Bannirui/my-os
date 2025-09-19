@@ -1,0 +1,13 @@
+# bochsrc 配置文件
+# 软盘镜像
+floppya: 1_44=dist/floppy.img, status=inserted
+# 启动顺序：先从软盘启动
+boot: a
+# 内存大小
+megs: 32
+# CPU 设置
+cpu: count=1, ips=1000000
+# 显示
+display_library: sdl2
+# 调试模式（如果需要）
+# magic_break: enabled

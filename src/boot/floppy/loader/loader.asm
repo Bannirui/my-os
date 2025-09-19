@@ -35,11 +35,13 @@ GdtLen equ $-LABEL_GDT ; GDT表的大小是多少个字节
 ; 要把GDT表的信息告诉寄存器 一个GDT表的元信息就两个 共6字节
 ; 2字节=GDT表的表长-1
 ; 4字节=GDT表的基地址
-GdtPtr: dw GdtLen-1
-        dd LABEL_GDT
+GdtPtr dw GdtLen-1
+       dd LABEL_GDT
 ; 段选择子 高13位放GDT表的数组脚标 TI(0是GDT 1是LDT) RPL(ring0内核态 ring3用户态)
-SelectorCode32 equ ((((LABEL_DESC_CODE32-LABEL_GDT)/8) <<3) | (0<<2) | 0) ; 代码段的段选择子
-SelectorData32 equ ((((LABEL_DESC_DATA32-LABEL_GDT)/8)<<3) | (0<<2) | 0) ; 数据段的段选择子
+; ((((LABEL_DESC_CODE32-LABEL_GDT)/8) <<3) | (0<<2) | 0) ; 代码段的段选择子
+SelectorCode32 equ LABEL_DESC_CODE32 - LABEL_GDT
+; ((((LABEL_DESC_DATA32-LABEL_GDT)/8)<<3) | (0<<2) | 0) ; 数据段的段选择子
+SelectorData32 equ LABEL_DESC_DATA32 - LABEL_GDT
 
 ; 64位下的GDT表段描述符
 ; 63                      56 55  52 51  48 47    40 39      32
@@ -57,8 +59,8 @@ LABEL_GDT64: dq 0 ; 跟32位GDT一样 第1个表项是0
 LABEL_DESC_CODE64: dq 0x0020980000000000 ; 内核代码段
 LABEL_DESC_DATA64: dq 0x0000920000000000 ; 内核数据段
 GdtLen64 equ $-LABEL_GDT64
-GdtPtr64: dw GdtLen64-1
-          dd LABEL_GDT64
+GdtPtr64 dw GdtLen64-1
+         dd LABEL_GDT64
 ; 这种写法比上面的简洁太多 正确性的原因是 跑在内核态ring0低2位是0 GDT所以第3位是0 也就是说GDT描述符选择子的低3位是0 那么GDT表项目偏移/8就等于>>3得到的就是GDT表的索引 再左移3位拼上低3位的0就等同于偏移量
 SelectorCode64 equ LABEL_DESC_CODE64-LABEL_GDT64
 SelectorData64 equ LABEL_DESC_DATA64-LABEL_GDT64
@@ -111,18 +113,6 @@ Label_Start:
     xor dl, dl
     int 0x13
 
-; todo 调试
-    mov ax, 0x1301
-    mov bx, 0x000f
-    mov dh, testMsgRow
-    mov dl, 0
-    mov cx, testMsgLen
-    push ax
-    mov ax, ds
-    mov es, ax
-    pop ax
-    mov bp, testMsg
-    int 0x10
 ; 软盘加载kernel程序到内存
     mov word [SectorNo], SectorNumOfRootDirStart
 
@@ -171,7 +161,8 @@ Label_Goto_Next_Sector_In_Root_Dir:
 Label_No_LoaderBin:
     mov ax, 0x1301
     mov bx, 0x008c
-    mov dx, 0x0300 ; row 3
+    mov dh, NoLoaderMessageRow
+    xor dl, dl
     mov cx, NoLoaderMessageLen
     push ax
     mov ax, ds
@@ -249,8 +240,6 @@ Label_Mov_Kernel:
     mov dx, RootDirSectors
     add ax, dx
     add ax, SectorBalance
-    ; todo 要删除
-    add bx, [BPB_BytesPerSec]
     jmp Label_Go_On_Loading_File
 Label_File_Loaded:
     mov ax, 0xb800
@@ -340,7 +329,7 @@ Label_Get_Mem_OK:
     mov di, 0x8000
     mov ax, 0x4f00
     int 0x10
-    cmp ax, 0x4f00
+    cmp ax, 0x004f
     jz .KO
 
 ; 获取SVGA失败
@@ -530,6 +519,8 @@ support_long_mode_done:
 no_support:
     jmp	$
 
+[SECTION .s116]
+[BITS 16]
 ; 把1个扇区读到内存上
 ; 入参 ax-扇区编号 读哪个扇区
 ;     cl-读几个扇区
@@ -583,7 +574,7 @@ Label_Even:
     mov bx, 0x8000
     add ax, SectorNumOfFAT1Start
     mov cl, 2
-    call Func_ReadOneSector ; near call
+    call Func_ReadOneSector
     pop dx
     add bx, dx
     mov ax, [es:bx]
@@ -654,15 +645,15 @@ NoLoaderMessage: db "ERROR: No KERNEL Found"
 NoLoaderMessageLen equ $-NoLoaderMessage
 NoLoaderMessageRow equ 3
 
-StartGetMemStructMessage: db "Start Get Memory Struct"
+StartGetMemStructMessage: db "Start Get Memory Struct(address, size, type)"
 StartGetMemStructMessageLen equ $-StartGetMemStructMessage
 StartGetMemStructMessageRow equ 4
 
-GetMemStructErrMessage: db "Get Memory Struct ERROR"
+GetMemStructErrMessage: db "Get Memory Struct ERR"
 GetMemStructErrMessageLen equ $-GetMemStructErrMessage
 GetMemStructErrMessageRow equ 5
 
-GetMemStructOKMessage: db "Get Memory Struct SUCCESSFUL!"
+GetMemStructOKMessage: db "Get Memory Struct SUCC"
 GetMemStructOKMessageLen equ $-GetMemStructOKMessage
 GetMemStructOKMessageRow equ 6
 
@@ -670,11 +661,11 @@ StartGetSVGAVBEInfoMessage: db "Start Get SVGA VBE Info"
 StartGetSVGAVBEInfoMessageLen equ $-StartGetSVGAVBEInfoMessage
 StartGetSVGAVBEInfoMessageRow equ 8
 
-GetSVGAVBEInfoErrMessage: db "Get SVGA VBE Info ERROR"
+GetSVGAVBEInfoErrMessage: db "Get SVGA VBE Info ERR"
 GetSVGAVBEInfoErrMessageLen equ $-GetSVGAVBEInfoErrMessage
 GetSVGAVBEInfoErrMessageRow equ 9
 
-GetSVGAVBEInfoOKMessage: db "Get SVGA VBE Info SUCCESSFUL!"
+GetSVGAVBEInfoOKMessage: db "Get SVGA VBE Info SUCC"
 GetSVGAVBEInfoOKMessageLen equ $-GetSVGAVBEInfoOKMessage
 GetSVGAVBEInfoOKMessageRow equ 0x0a
 
@@ -682,14 +673,10 @@ StartGetSVGAModeInfoMessage: db "Start Get SVGA Mode Info"
 StartGetSVGAModeInfoMessageLen equ $-StartGetSVGAModeInfoMessage
 StartGetSVGAModeInfoMessageRow equ 0x0c
 
-GetSVGAModeInfoErrMessage: db "Get SVGA Mode Info ERROR"
+GetSVGAModeInfoErrMessage: db "Get SVGA Mode Info ERR"
 GetSVGAModeInfoErrMessageLen equ $-GetSVGAModeInfoErrMessage
 GetSVGAModeInfoErrMessageRow equ 0x0d
 
-GetSVGAModeInfoOKMessage: db "Get SVGA Mode Info SUCCESSFUL!"
+GetSVGAModeInfoOKMessage: db "Get SVGA Mode Info SUCC"
 GetSVGAModeInfoOKMessageLen equ $-GetSVGAModeInfoOKMessage
 GetSVGAModeInfoOKMessageRow equ 0x0e
-
-testMsg: db "test..."
-testMsgLen equ $-testMsg
-testMsgRow equ 0x0f

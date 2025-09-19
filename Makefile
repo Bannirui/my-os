@@ -65,7 +65,9 @@ dist/floppy.img: build/boot/floppy/boot/boot.bin build/boot/floppy/loader/loader
 	rmdir dist/mnt
 
 run: dist/floppy.img
-	qemu-system-x86_64 -fda dist/floppy.img -boot a
+	qemu-system-x86_64 -fda $^ -boot a
+debug: dist/floppy.img bochsrc
+	bochs -f bochsrc -q
 
 clean:
 	rm -rf build dist
