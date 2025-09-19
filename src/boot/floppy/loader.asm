@@ -59,6 +59,7 @@ LABEL_DESC_DATA64: dq 0x0000920000000000 ; 内核数据段
 GdtLen64 equ $-LABEL_GDT64
 GdtPtr64: dw GdtLen64-1
           dd LABEL_GDT64
+; 这种写法比上面的简洁太多 正确性的原因是 跑在内核态ring0低2位是0 GDT所以第3位是0 也就是说GDT描述符选择子的低3位是0 那么GDT表项目偏移/8就等于>>3得到的就是GDT表的索引 再左移3位拼上低3位的0就等同于偏移量
 SelectorCode64 equ LABEL_DESC_CODE64-LABEL_GDT64
 SelectorData64 equ LABEL_DESC_DATA64-LABEL_GDT64
 
@@ -75,7 +76,8 @@ Label_Start:
 ; 打印字符串调试
     mov ax, 0x1301
     mov bx, 0x000f
-    mov dx, 0x0200
+    mov dh, StartLoaderMessageRow
+    mov dl, 0
     mov cx, StartLoaderMessageLen
     push ax
     mov ax, ds
@@ -109,6 +111,18 @@ Label_Start:
     xor dl, dl
     int 0x13
 
+; todo 调试
+    mov ax, 0x1301
+    mov bx, 0x000f
+    mov dh, testMsgRow
+    mov dl, 0
+    mov cx, testMsgLen
+    push ax
+    mov ax, ds
+    mov es, ax
+    pop ax
+    mov bp, testMsg
+    int 0x10
 ; 软盘加载kernel程序到内存
     mov word [SectorNo], SectorNumOfRootDirStart
 
@@ -256,7 +270,8 @@ KillMotor:
 ; 内核程序不需要再借助内存临时转存了 这块临时转存空间用来记录物理地址空间信息
     mov ax, 0x1301
     mov bx, 0x000f
-    mov dx, 0x0400 ;row 4
+    mov dh, StartGetMemStructMessageRow
+    mov dl, 0
     mov cx, StartGetMemStructMessageLen
     push ax
     mov ax, ds
@@ -285,7 +300,8 @@ Label_Get_Mem_Fail:
     mov dword [MemStructNumber], 0
     mov ax, 0x1301
     mov bx, 0x008c
-    mov dx, 0x0500 ;row 5
+    mov dh, GetMemStructErrMessageRow
+    mov dl, 0
     mov cx, GetMemStructErrMessageLen
     push ax
     mov ax, ds
@@ -296,7 +312,8 @@ Label_Get_Mem_Fail:
 Label_Get_Mem_OK:
     mov ax, 0x1301
     mov bx, 0x000f
-    mov dx, 0x0600 ;row 6
+    mov dh, GetMemStructOKMessageRow
+    mov dl, 0
     mov cx, GetMemStructOKMessageLen
     push ax
     mov ax, ds
@@ -308,7 +325,8 @@ Label_Get_Mem_OK:
 ; SVGA信息
     mov ax, 0x1301
     mov bx, 0x000f
-    mov dx, 0x0800 ; row 8
+    mov dh, StartGetSVGAVBEInfoMessageRow
+    mov dl, 0
     mov cx, StartGetSVGAVBEInfoMessageLen
     push ax
     mov ax, ds
@@ -328,7 +346,8 @@ Label_Get_Mem_OK:
 ; 获取SVGA失败
     mov ax, 0x1301
     mov bx, 0x008c
-    mov dx, 0x0900 ; row 9
+    mov dh, GetSVGAVBEInfoErrMessageRow
+    mov dl, 0
     mov cx, GetSVGAVBEInfoErrMessageLen
     push ax
     mov ax, ds
@@ -340,7 +359,8 @@ Label_Get_Mem_OK:
 .KO:
     mov ax, 0x1301
     mov bx, 0x000f
-    mov dx, 0x0a00 ; row 10
+    mov dh, GetSVGAVBEInfoOKMessageRow
+    mov dl, 0
     mov cx, GetSVGAVBEInfoOKMessageLen
     push ax
     mov ax, ds
@@ -352,7 +372,8 @@ Label_Get_Mem_OK:
 ; SVGA模式
     mov ax, 0x1301
     mov bx, 0x000f
-    mov dx, 0x0c00 ;row 12
+    mov dh, StartGetSVGAModeInfoMessageRow
+    mov dl, 0
     mov cx, StartGetSVGAModeInfoMessageLen
     push ax
     mov ax, ds
@@ -399,7 +420,8 @@ Label_SVGA_Mode_Info_Get:
 Label_SVGA_Mode_Info_FAIL:
     mov ax, 0x1301
     mov bx, 0x008c
-    mov dx, 0x0d00 ; row 13
+    mov dh, GetSVGAModeInfoErrMessageRow
+    mov dl, 0
     mov cx, GetSVGAModeInfoErrMessageLen
     push ax
     mov ax, ds
@@ -412,7 +434,8 @@ Label_SET_SVGA_Mode_VESA_VBE_FAIL:
 Label_SVGA_Mode_Info_Finish:
     mov ax, 0x1301
     mov bx, 0x000f
-    mov dx, 0x0e00 ; row 14
+    mov dh, GetSVGAModeInfoOKMessageRow
+    mov dl, 0
     mov cx, GetSVGAModeInfoOKMessageLen
     push ax
     mov ax, ds
@@ -620,29 +643,53 @@ MemStructNumber dd 0
 SVGAModeCounter dd 0
 DisplayPosition dd 0
 
-; 字符串
+KernelFileName: db "KERNEL  BIN", 0 ; 磁盘中烧录的内核程序名字 字符串长度11 文件名 扩展名 结束符\0
+
+; 打印字符串 长度 显示在第几行
 StartLoaderMessage: db "START LOADER..."
 StartLoaderMessageLen equ $-StartLoaderMessage
+StartLoaderMessageRow equ 2
+
 NoLoaderMessage: db "ERROR: No KERNEL Found"
 NoLoaderMessageLen equ $-NoLoaderMessage
-KernelFileName: db "KERNEL  BIN", 0 ; 字符串长度11 文件名 扩展名 结束符\0
+NoLoaderMessageRow equ 3
+
 StartGetMemStructMessage: db "Start Get Memory Struct"
 StartGetMemStructMessageLen equ $-StartGetMemStructMessage
+StartGetMemStructMessageRow equ 4
+
 GetMemStructErrMessage: db "Get Memory Struct ERROR"
 GetMemStructErrMessageLen equ $-GetMemStructErrMessage
+GetMemStructErrMessageRow equ 5
+
 GetMemStructOKMessage: db "Get Memory Struct SUCCESSFUL!"
 GetMemStructOKMessageLen equ $-GetMemStructOKMessage
+GetMemStructOKMessageRow equ 6
 
 StartGetSVGAVBEInfoMessage: db "Start Get SVGA VBE Info"
 StartGetSVGAVBEInfoMessageLen equ $-StartGetSVGAVBEInfoMessage
+StartGetSVGAVBEInfoMessageRow equ 8
+
 GetSVGAVBEInfoErrMessage: db "Get SVGA VBE Info ERROR"
 GetSVGAVBEInfoErrMessageLen equ $-GetSVGAVBEInfoErrMessage
+GetSVGAVBEInfoErrMessageRow equ 9
+
 GetSVGAVBEInfoOKMessage: db "Get SVGA VBE Info SUCCESSFUL!"
 GetSVGAVBEInfoOKMessageLen equ $-GetSVGAVBEInfoOKMessage
+GetSVGAVBEInfoOKMessageRow equ 0x0a
 
 StartGetSVGAModeInfoMessage: db "Start Get SVGA Mode Info"
 StartGetSVGAModeInfoMessageLen equ $-StartGetSVGAModeInfoMessage
+StartGetSVGAModeInfoMessageRow equ 0x0c
+
 GetSVGAModeInfoErrMessage: db "Get SVGA Mode Info ERROR"
 GetSVGAModeInfoErrMessageLen equ $-GetSVGAModeInfoErrMessage
+GetSVGAModeInfoErrMessageRow equ 0x0d
+
 GetSVGAModeInfoOKMessage: db "Get SVGA Mode Info SUCCESSFUL!"
 GetSVGAModeInfoOKMessageLen equ $-GetSVGAModeInfoOKMessage
+GetSVGAModeInfoOKMessageRow equ 0x0e
+
+testMsg: db "test..."
+testMsgLen equ $-testMsg
+testMsgRow equ 0x0f
