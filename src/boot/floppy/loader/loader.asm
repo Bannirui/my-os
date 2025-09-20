@@ -60,7 +60,7 @@ SelectorData32 equ L_DESC_DATA32 - L_GDT
 ;|                      Limit 15:0                          |
 ;+----------------------------------------------------------+
 ; 15                       8 7                               0
-; 64位已经没有了内存段的概念了 GDT表的段描述符退化成了权限/模式管理的门票
+; 64位已经没有了内存段的概念了 GDT表的段描述符退化成了权限/模式管理的门票 删除了冗余的段基址和段界限让段直接覆盖整个线性地址空间进而变成平坦地址空间
 [SECTION gdt64]
 L_GDT64: dq 0 ; 跟32位GDT一样 第1个表项是0
 L_DESC_CODE64: dq 0x0020980000000000 ; 内核代码段
@@ -517,15 +517,18 @@ GO_TO_TMP_Protect:
     mov ss, ax
     mov esp, 0x7e00
     call support_long_mode ; 然后立马执行call就真正进入到了32位保护模式了
+
 ; 开启IA-32e的64位长模式的标准流程是
 ; 1 在保护模式下 使用mov cr0汇编指令复位PG标志位关闭分页机制
 ; 2 置位cr4控制寄存器的PAE标志位开启物理地址扩展功能
 ; 3 将页目录的物理地址加载到cr3控制寄存器中
 ; 4 置位IA32_EFER寄存器的LME标志位开启IA-32e模式
 ; 5 置位cr0控制寄存器的PG标志位开启分页机制
+
+; 上面在切换到保护模式的时候并没有打开过分页机制 所以到目前为止分页机制都还是关着的
     test eax, eax
     jz no_support
-; 配置页目录和页表
+; 配置页目录和页表 将IA-32e模式的页目录首地址设置在0x90000地址处
     mov dword [0x90000], 0x91007
     mov dword [0x90800], 0x91007
     mov dword [0x91000], 0x92007
@@ -538,7 +541,7 @@ GO_TO_TMP_Protect:
 ; 加载GDT
     lgdt [GdtPtr64]
 ; 初始化段寄存器
-    mov ax, 0x10
+    mov ax, 0x10 ; 段选择子的偏移设置2 0x10的二进制是0001 0000 高13位是GDT表偏移2
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -546,17 +549,18 @@ GO_TO_TMP_Protect:
     mov ss, ax
 
     mov esp, 0x7e00
-; 打开地址扩展
+    ; 经过初始化IA-32e段寄存器后 他们现在加载了64位下的段描述符 段基址和段偏移已经全部清0 但是cs代码段寄存器没有设置还是跑在32位保护模式下
+; 打开地址扩展 cr4寄存器的第5位是PAE功能的标志位 置位该标志位就开启了PAE
     mov eax, cr4
     bts eax, 5
     mov cr4, eax
 ; 页目录首地址设置到crc3寄存器
-    mov eax, 0x90000
+    mov eax, 0x90000 ; 0x90000是布局给64位模式的页目录首地址 告诉cr3寄存器
     mov cr3, eax
-; 激活IA-32e长模式
-    mov ecx, 0x0c0000080
-    rdmsr
-    bts eax, 8
+; 激活IA-32e长模式 置位IA32_EFER寄存器的LME标志位就能激活IA-32e长模式了
+    mov ecx, 0x0c0000080 ; 在访问msr寄存器前必须向ecx传入寄存器地址 msr寄存器由edx:eax组成的64位寄存器代表 edx保存的是msr寄存器的高32位 eax寄存器保存的是msr寄存器的低32位
+    rdmsr ; 借助rdmsr指令访问64位的msr寄存器
+    bts eax, 8 ; msr寄存器的第8位是LME标志位 置位第8位就是激活了IA-32e长模式
     wrmsr
 ; 使能分页
     mov eax, cr0
