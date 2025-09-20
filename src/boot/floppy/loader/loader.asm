@@ -267,12 +267,22 @@ L_Mov_Kernel:
     jmp L_Go_On_Loading_File
 ; 所有的kernel程序都从磁盘读出来并且搬到了1M以上地址空间了
 L_File_Loaded:
-    ; 
+    ; b800显示方法 跟BIOS比起来更高效
+    ; 内存地址从b800开始是一段专门用来显示字符的内存空间 每个字符占用2个字节的内存空间 低字节保存要显示的字符 高字节保存字符的颜色属性
+    ; 字符到内存b800地址偏移offset = (row * 80 + col) * 2 乘以2的原因是每个字符要占2字节
     mov ax, 0xb800
     mov gs, ax
     mov ah, 0x0f ; 0000黑底 1111白字
-    mov al, 'G'
+    mov al, 'H'
     mov [gs:((80 * 0 + 39) * 2)], ax ; 屏幕第0行 第39列
+    mov al, 'E'
+    mov [gs:((80 * 1 + 39) * 2)], ax ; 屏幕第1行 第39列
+    mov al, 'L'
+    mov [gs:((80 * 2 + 39) * 2)], ax ; 屏幕第2行 第39列
+    mov al, 'L'
+    mov [gs:((80 * 3 + 39) * 2)], ax ; 屏幕第3行 第39列
+    mov al, 'O'
+    mov [gs:((80 * 4 + 39) * 2)], ax ; 屏幕第4行 第39列
 
 ; kernel程序被加载到了内存 软驱的使命完成了 后面不需要使用软驱了 可以关闭软驱
 KillMotor:
