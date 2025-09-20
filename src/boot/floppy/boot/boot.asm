@@ -146,7 +146,7 @@ L_Go_On_Loading_File:
     add bx, [BPB_BytesPerSec]
     jmp L_Go_On_Loading_File
 L_File_Loaded:
-    jmp BaseOfLoader:OffsetOfLoader ; loader程序放在0x10000上 跳过去
+    jmp BaseOfLoader:OffsetOfLoader ; loader程序放在0x10000上 跳过去 现在还是16位实模式 用的是段地址 跳过去后cs=0x1000 ip=0
 
 ; 把1个扇区读到内存上
 ; 入参 ax-扇区编号 读哪个扇区
