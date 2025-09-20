@@ -1,6 +1,6 @@
 ; loader负责 硬件检测 cpu模式切换 向内核传递数据
 org 0x10000
-    jmp Label_Start
+    jmp L_Start
 
 %include "fat12.inc"
 
@@ -28,20 +28,20 @@ MemoryStructBufferAddr equ OffsetTmpOfKernelFile ; 放在这个地址上的内�
 ; 15                           8 7                                     0
 
 [SECTION gdt]
-LABEL_GDT: dd 0, 0 ; intel规范规定GDT表的第1个表项必须是0
-LABEL_DESC_CODE32: dd 0x0000ffff, 0x00cf9a00 ; 代码段 基址0 界限4G
-LABEL_DESC_DATA32: dd 0x0000ffff, 0x00cf9200 ; 数据段 基址0 界限4G
-GdtLen equ $-LABEL_GDT ; GDT表的大小是多少个字节
+L_GDT: dd 0, 0 ; intel规范规定GDT表的第1个表项必须是0
+L_DESC_CODE32: dd 0x0000ffff, 0x00cf9a00 ; 代码段 基址0 界限4G
+L_DESC_DATA32: dd 0x0000ffff, 0x00cf9200 ; 数据段 基址0 界限4G
+GdtLen equ $-L_GDT ; GDT表的大小是多少个字节
 ; 要把GDT表的信息告诉寄存器 一个GDT表的元信息就两个 共6字节
 ; 2字节=GDT表的表长-1
 ; 4字节=GDT表的基地址
 GdtPtr dw GdtLen-1
-       dd LABEL_GDT
+       dd L_GDT
 ; 段选择子 高13位放GDT表的数组脚标 TI(0是GDT 1是LDT) RPL(ring0内核态 ring3用户态)
-; ((((LABEL_DESC_CODE32-LABEL_GDT)/8) <<3) | (0<<2) | 0) ; 代码段的段选择子
-SelectorCode32 equ LABEL_DESC_CODE32 - LABEL_GDT
-; ((((LABEL_DESC_DATA32-LABEL_GDT)/8)<<3) | (0<<2) | 0) ; 数据段的段选择子
-SelectorData32 equ LABEL_DESC_DATA32 - LABEL_GDT
+; ((((L_DESC_CODE32-L_GDT)/8) <<3) | (0<<2) | 0) ; 代码段的段选择子
+SelectorCode32 equ L_DESC_CODE32 - L_GDT
+; ((((L_DESC_DATA32-L_GDT)/8)<<3) | (0<<2) | 0) ; 数据段的段选择子
+SelectorData32 equ L_DESC_DATA32 - L_GDT
 
 ; 64位下的GDT表段描述符
 ; 63                      56 55  52 51  48 47    40 39      32
@@ -55,19 +55,19 @@ SelectorData32 equ LABEL_DESC_DATA32 - LABEL_GDT
 ; 15                       8 7                               0
 ; 64位已经没有了内存段的概念了 GDT表的段描述符退化成了权限/模式管理的门票
 [SECTION gdt64]
-LABEL_GDT64: dq 0 ; 跟32位GDT一样 第1个表项是0
-LABEL_DESC_CODE64: dq 0x0020980000000000 ; 内核代码段
-LABEL_DESC_DATA64: dq 0x0000920000000000 ; 内核数据段
-GdtLen64 equ $-LABEL_GDT64
+L_GDT64: dq 0 ; 跟32位GDT一样 第1个表项是0
+L_DESC_CODE64: dq 0x0020980000000000 ; 内核代码段
+L_DESC_DATA64: dq 0x0000920000000000 ; 内核数据段
+GdtLen64 equ $-L_GDT64
 GdtPtr64 dw GdtLen64-1
-         dd LABEL_GDT64
+         dd L_GDT64
 ; 这种写法比上面的简洁太多 正确性的原因是 跑在内核态ring0低2位是0 GDT所以第3位是0 也就是说GDT描述符选择子的低3位是0 那么GDT表项目偏移/8就等于>>3得到的就是GDT表的索引 再左移3位拼上低3位的0就等同于偏移量
-SelectorCode64 equ LABEL_DESC_CODE64-LABEL_GDT64
-SelectorData64 equ LABEL_DESC_DATA64-LABEL_GDT64
+SelectorCode64 equ L_DESC_CODE64-L_GDT64
+SelectorData64 equ L_DESC_DATA64-L_GDT64
 
 [SECTION .s16]
 [BITS 16] ; 代码跑在16位实模式下
-Label_Start:
+L_Start:
 	mov ax, cs
 	mov ds, ax
 	mov es, ax
@@ -119,7 +119,7 @@ Label_Start:
 ; fat12根目录共14个扇区 轮询查找
 Lable_Search_In_Root_Dir_Begin:
     cmp word [RootDirSizeForLoop], 0
-    jz Label_No_LoaderBin
+    jz L_No_LoaderBin
     dec word [RootDirSizeForLoop]
     ; 准备读扇区数据到内存上的参数 从19扇区开始找读到0x8000上
     xor ax, ax
@@ -132,33 +132,33 @@ Lable_Search_In_Root_Dir_Begin:
     mov di, 0x8000
     cld ; 下面要在循环里面比较字符串 此时在0x8000上放着的是从根目录读到的文件名 要保证比较字符串方向是从0x8000低地址空间到高地址空间
     mov dx, 0x10 ; 16表示的是1个根目录扇区有16个根目录项目 也就是说这边会套2层循环 外层是16个目录项 内层是每个文件名称11字节 跟LOADER BIN比较找到loader程序
-Label_Search_For_LoaderBin:
+L_Search_For_LoaderBin:
     cmp dx, 0
-    jz Label_Goto_Next_Sector_In_Root_Dir
+    jz L_Goto_Next_Sector_In_Root_Dir
     dec dx
     mov cx, 11 ; 11表示是的文件名+扩展名长度是11
-Label_Cmp_FileName:
+L_Cmp_FileName:
     cmp cx, 0
-    jz Label_FileName_Found
+    jz L_FileName_Found
     dec cx
     lodsb ; 拿到ds:si的字符放到al里面 就是目标文件名的字符 然后跟扇区根目录的文件名比较
     cmp al, byte [es:di]
-    jz Label_Go_On
-    jmp Label_Different
-Label_Go_On:
+    jz L_Go_On
+    jmp L_Different
+L_Go_On:
     inc di ; 指向内存上的指针后移 准备比较扇区中根目录里面拿到的文件名的下一个字符
-    jmp Label_Cmp_FileName
-Label_Different:
+    jmp L_Cmp_FileName
+L_Different:
     and di, 0xffe0
     add di, 0x20
     mov si, KernelFileName
-    jmp Label_Search_For_LoaderBin
-Label_Goto_Next_Sector_In_Root_Dir:
+    jmp L_Search_For_LoaderBin
+L_Goto_Next_Sector_In_Root_Dir:
     add word [SectorNo], 1
     jmp Lable_Search_In_Root_Dir_Begin
 
 ; 找不到loader程序 打印提示信息然后夯在这
-Label_No_LoaderBin:
+L_No_LoaderBin:
     mov ax, 0x1301
     mov bx, 0x008c
     mov dh, NoLoaderMessageRow
@@ -171,7 +171,7 @@ Label_No_LoaderBin:
     mov bp, NoLoaderMessage
     int 0x10
     jmp $
-Label_FileName_Found:
+L_FileName_Found:
     mov ax, RootDirSectors
     and di, 0xffe0
     add di, 0x001a
@@ -183,7 +183,7 @@ Label_FileName_Found:
     mov es, eax
     mov bx, OffsetTmpOfKernelFile
     mov ax, cx
-Label_Go_On_Loading_File:
+L_Go_On_Loading_File:
     push ax
     push bx
     mov ah, 0x0e
@@ -211,14 +211,14 @@ Label_Go_On_Loading_File:
     mov ax, BaseTmpOfKernelAddr
     mov ds, ax
     mov esi, OffsetTmpOfKernelFile
-Label_Mov_Kernel:
+L_Mov_Kernel:
     mov al, byte [ds:esi]
     mov byte [fs:edi], al
 
     inc esi
     inc edi
 
-    loop Label_Mov_Kernel
+    loop L_Mov_Kernel
 
     mov eax, 0x1000
     mov ds, eax
@@ -235,13 +235,13 @@ Label_Mov_Kernel:
 ; 继续读盘函数
     call Func_GetFATEntry
     cmp ax, 0x0fff
-    jz Label_File_Loaded
+    jz L_File_Loaded
     push ax
     mov dx, RootDirSectors
     add ax, dx
     add ax, SectorBalance
-    jmp Label_Go_On_Loading_File
-Label_File_Loaded:
+    jmp L_Go_On_Loading_File
+L_File_Loaded:
     mov ax, 0xb800
     mov gs, ax
     mov ah, 0x0f ; 0000黑底 1111白字
@@ -274,18 +274,18 @@ KillMotor:
     mov es, ax
     mov di, MemoryStructBufferAddr
 
-Label_Get_Mem_Struct:
+L_Get_Mem_Struct:
     mov eax, 0xe820
     mov ecx, 20
     mov edx, 0x534d4150
     int 0x15
-    jc Label_Get_Mem_Fail
+    jc L_Get_Mem_Fail
     add di, 20
     inc dword [MemStructNumber]
     cmp ebx, 0
-    jne Label_Get_Mem_Struct
-    jmp Label_Get_Mem_OK
-Label_Get_Mem_Fail:
+    jne L_Get_Mem_Struct
+    jmp L_Get_Mem_OK
+L_Get_Mem_Fail:
     mov dword [MemStructNumber], 0
     mov ax, 0x1301
     mov bx, 0x008c
@@ -298,7 +298,7 @@ Label_Get_Mem_Fail:
     pop ax
     mov bp, GetMemStructErrMessage
     int 0x10
-Label_Get_Mem_OK:
+L_Get_Mem_OK:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dh, GetMemStructOKMessageRow
@@ -377,36 +377,36 @@ Label_Get_Mem_OK:
 
     mov esi, dword [es:si]
     mov edi, 0x8200
-Label_SVGA_Mode_Info_Get:
+L_SVGA_Mode_Info_Get:
     mov cx, word [es:esi]
 
 ; 打印SVGA模式
     push ax
     xor ax, ax
     mov al, ch
-    call Label_DispAL
+    call L_DispAL
 
     xor ax, ax
     mov al, cl
-    call Label_DispAL
+    call L_DispAL
     pop ax
 
     cmp cx, 0xffff
-    jz Label_SVGA_Mode_Info_Finish
+    jz L_SVGA_Mode_Info_Finish
 
     mov ax, 0x4f01
     int 0x10
 
     cmp ax, 0x004f
 
-    jnz Label_SVGA_Mode_Info_FAIL
+    jnz L_SVGA_Mode_Info_FAIL
 
     inc dword [SVGAModeCounter]
     add esi, 2
     add edi, 0x100
 
-    jmp Label_SVGA_Mode_Info_Get
-Label_SVGA_Mode_Info_FAIL:
+    jmp L_SVGA_Mode_Info_Get
+L_SVGA_Mode_Info_FAIL:
     mov ax, 0x1301
     mov bx, 0x008c
     mov dh, GetSVGAModeInfoErrMessageRow
@@ -418,9 +418,9 @@ Label_SVGA_Mode_Info_FAIL:
     pop ax
     mov bp, GetSVGAModeInfoErrMessage
     int 0x10
-Label_SET_SVGA_Mode_VESA_VBE_FAIL:
+L_SET_SVGA_Mode_VESA_VBE_FAIL:
     jmp $
-Label_SVGA_Mode_Info_Finish:
+L_SVGA_Mode_Info_Finish:
     mov ax, 0x1301
     mov bx, 0x000f
     mov dh, GetSVGAModeInfoOKMessageRow
@@ -438,7 +438,7 @@ Label_SVGA_Mode_Info_Finish:
     int 0x10
 
     cmp ax, 0x004f
-    jnz Label_SET_SVGA_Mode_VESA_VBE_FAIL
+    jnz L_SET_SVGA_Mode_VESA_VBE_FAIL
 
 ; 初始化IDT GDT进入保护模式
     cli ; 先关闭BIOS的中断
@@ -541,11 +541,11 @@ Func_ReadOneSector:
     and dh, 1
     pop bx
     mov dl, [BS_DrvNum]
-Label_Go_On_Reading:
+L_Go_On_Reading:
     mov ah, 2
     mov al, byte [bp - 2]
     int 0x13
-    jc Label_Go_On_Reading
+    jc L_Go_On_Reading
     add esp, 2
     pop bp
     ret
@@ -564,9 +564,9 @@ Func_GetFATEntry:
     mov bx, 2
     div bx
     cmp dx, 0
-    jz Label_Even
+    jz L_Even
     mov byte [Odd], 1
-Label_Even:
+L_Even:
     xor dx, dx
     mov bx, [BPB_BytesPerSec]
     div bx
@@ -579,16 +579,16 @@ Label_Even:
     add bx, dx
     mov ax, [es:bx]
     cmp byte [Odd], 1
-    jnz Label_Even_2
+    jnz L_Even_2
     shr ax, 4
-Label_Even_2:
+L_Even_2:
     and ax, 0x0fff
     pop bx
     pop es
     ret
 
 ; 打印调试
-Label_DispAL:
+L_DispAL:
     push ecx
     push edx
     push edi
