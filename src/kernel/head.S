@@ -1,7 +1,7 @@
 // 内核的头程序 在loader中已经从16位实模式跳到32位保护模式 以及临时切换到IA-32e长模式
-// 现在到了内核程序中了 需要依赖内核头程序真正切换到64位的IA-32e长模式 
-// 内核执行头程序负责为操作系统创建段结构和页表结构
+// 现在到了内核程序中了 需要依赖内核头程序为系统重建64位IA-32e长模式的段结构和页表结构
 // 代码风格是AT&T
+// 在链接的时候把0xffff800000000000+0x100000设计成了内核程序的线性地址
 .section .text
 
 .globl _start
@@ -53,6 +53,7 @@ entry64:
 go_to_kernel:
     .quad Start_Kernel
 
+// 为操作系统创建和初始化页表及页表项
 .align 8
 
 .org 0x1000
@@ -87,10 +88,9 @@ __PDE:
     .quad 0xe0e00083
     .fill 499,8,0
 
+// 数据段 把全局描述符表GDT结构 中断描述符表IDT结构 任务状态段TSS结构都放在内核程序的数据段内
 .section .data
-
 .globl GDT_Table
-
 GDT_Table:
     .quad 0x0000000000000000
     .quad 0x0020980000000000
@@ -107,7 +107,6 @@ GDT_LIMIT: .word GDT_END - GDT_Table - 1
 GDT_BASE: .quad GDT_Table
 
 .globl IDT_Table
-
 IDT_Table:
     .fill  512,8,0
 IDT_END:
@@ -117,7 +116,6 @@ IDT_LIMIT: .word IDT_END - IDT_Table - 1
 IDT_BASE: .quad IDT_Table
 
 .globl TSS64_Table
-
 TSS64_Table:
     .fill  13,8,0
 TSS64_END:
