@@ -294,7 +294,7 @@ KillMotor:
     out 0x03f2, al ; 新的值再写回到端口
     pop ax
 
-; 内核程序不需要再借助内存临时转存了 这块临时转存空间用来记录物理地址空间信息
+; 打印
     mov ax, 0x1301
     mov bx, 0x000f
     mov dh, StartGetMemStructMessageRow
@@ -307,20 +307,30 @@ KillMotor:
     mov bp, StartGetMemStructMessage
     int 0x10
 
+; 上面[7e00...]512字节的空间在搬运内核代码时是缓存空间 内核程序不需要再借助内存临时转存了 这块临时转存空间用来记录物理地址空间信息
+    ; es:di=0:0x7e00
     xor ebx, ebx
     xor ax, ax
     mov es, ax
     mov di, MemoryStructBufferAddr
 
+; 0x15获取内存布局中断调用
+; 入参
+; ebx-在BIOS 0x15中断调用中会刷新这个值 0表示不继续发起调用了 1表示还要继续中断调用继续获取更多的内存结构信息 所以在第1次调用前就初始化0值
+; es:di-中断服务会把拿到的内存结构体信息放到这
+; 出参
+; cf=0-表示成功
+; ES:DI-指向写入的内存表
+; EBX-被BIOS更新 用于下一次调用
 L_Get_Mem_Struct:
-    mov eax, 0xe820
-    mov ecx, 20
-    mov edx, 0x534d4150
-    int 0x15
-    jc L_Get_Mem_Fail
-    add di, 20
-    inc dword [MemStructNumber]
-    cmp ebx, 0
+    mov eax, 0xe820 ; 系统调用功能号 获取内存布局
+    mov ecx, 20 ; 系统调用返回的结构体大小是20字节 这也是标准的E820结构体大小
+    mov edx, 0x534d4150 ; SMAP的ASCII值 表示需要的是SMAP格式的内存表
+    int 0x15 ; 发起BIOS系统调用
+    jc L_Get_Mem_Fail ; cf=1表示调用失败
+    add di, 20 ; 在调用中断之前已经约定了每个结构体大小是20字节 现在成功拿到了1个内存结构体 说明BIOS中断已经在es:di上放了20字节内容了 所以要后移di指针 为下一个结构体的放入布局
+    inc dword [MemStructNumber] ; 记录拿到了多少个结构体
+    cmp ebx, 0 ; 是继续标识 不是0表示还有更多的内存条目可以继续获取 0表示已经是最后一个内存条目了没有更多了
     jne L_Get_Mem_Struct
     jmp L_Get_Mem_OK
 L_Get_Mem_Fail:
@@ -421,6 +431,7 @@ L_SVGA_Mode_Info_Get:
 ; 打印SVGA模式
     push ax
     xor ax, ax
+    ; 调用函数显示16进制的数 al是参数-要显示的数
     mov al, ch
     call L_DispAL
 
@@ -557,7 +568,7 @@ support_long_mode_done:
 no_support:
     jmp	$
 
-[SECTION .s116]
+[SECTION .s16lib]
 [BITS 16]
 ; 把1个扇区读到内存上
 ; 入参 ax-扇区编号 读哪个扇区
@@ -625,7 +636,9 @@ L_Even_2:
     pop es
     ret
 
-; 打印调试
+; 打印显示16进制数值
+; 参数
+; al-要显示的16进制数
 L_DispAL:
     push ecx
     push edx
@@ -668,7 +681,7 @@ RootDirSizeForLoop dw RootDirSectors ; fat12根目录占14个扇区
 SectorNo dw 0 ; 读盘的时候要知道读哪个扇区 0-based
 Odd db 0
 OffsetOfKernelFileCount dd OffsetOfKernelFile ; 临时变量初始0x100000 等把kernel代码从0x7e00搬到0x100000后会被赋值512
-MemStructNumber dd 0
+MemStructNumber dd 0 ; BIOS中断0x15获取内存布局信息时拿到了多少个内存结构体 这些结构体放在0x7e00上 1个就是20字节 n个就是20n个字节
 SVGAModeCounter dd 0
 DisplayPosition dd 0
 
