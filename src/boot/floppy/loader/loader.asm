@@ -285,12 +285,14 @@ L_File_Loaded:
     mov [gs:((80 * 4 + 39) * 2)], ax ; 屏幕第4行 第39列
 
 ; kernel程序被加载到了内存 软驱的使命完成了 后面不需要使用软驱了 可以关闭软驱
+; 通过向3f2端口写命令控制关闭软驱马达
 KillMotor:
-    push dx
-    mov dx, 0x03f2
-    mov al, 0
-    out dx, al
-    pop dx
+    push ax
+    mov ah, 0
+    in al, 0x03f2 ; 端口3f2现在的值读出来
+    and al, 0 ; 与运算改值
+    out 0x03f2, al ; 新的值再写回到端口
+    pop ax
 
 ; 内核程序不需要再借助内存临时转存了 这块临时转存空间用来记录物理地址空间信息
     mov ax, 0x1301
