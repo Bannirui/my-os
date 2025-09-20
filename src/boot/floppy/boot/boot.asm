@@ -1,9 +1,10 @@
 ; BIOS引导程序 放在磁盘引导扇区被加载 这个程序负责把loader程序从磁盘读到内存0x8000上然后跳过去
-org 0x7c00
+[SECTION mbr] ; 打上节标识 程序写完最后用$-$$就能知道从这到被编译后的地址有多大 用0凑够510字节 再补上2字节占位标识就完成了扇区引导区
+org 0x7c00 ; 处理器跳过来到引导程序的时候还在实模式 它会在0x7c00上寻址执行 cs=0 ip=7c00 所以告诉编译器指定程序的起始地址 如果不指定的话编译器会抒把0作为程序的起始地址
 
 BaseOfStack equ 0x7c00
 
-; loader程序物理地址 0x1000:0
+; loader程序物理地址 0x1000:0 现在引导程序跑在16位实模式下 把loader程序从磁盘读到内存0x10000后还得依赖jmp跳转顺便重置cs=0x1000 ip=0
 BaseOfLoader equ 0x1000
 OffsetOfLoader equ 0
 
@@ -14,12 +15,12 @@ nop
 %include "fat12.inc" ; 这里面是fat12的BPB 必须在引导扇区的偏移3上紧跟着jmp和nop
 
 L_Start:
-; 标准设置寄存器
+; 标准寄存器初始化
     mov ax, cs
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, BaseOfStack
+    mov sp, BaseOfStack ; BIOS不强制要求设置栈基址 因为引导程序中涉及栈操作不多 所以让栈倒扣在这向下生长没有问题
 ; 清屏
     mov ax, 0x0600
     mov bx, 0x0700
@@ -44,14 +45,14 @@ L_Start:
     mov bp, StartBootMessage
     int 0x10
 ; 重置软驱
-    xor ah, ah
-    xor dl, dl
+    xor ah, ah ;0号功能号
+    xor dl, dl ; 驱动器号 软盘[0...7f] 硬盘[80...ff] 00表示第1个软盘驱动器driveA:
     int 0x13
 ; 通过文件系统读软盘里面的loader程序 下面封装BIOS中断开始读盘 fat12根目录的扇区是19#
     mov word [SectorNo], SectorNumOfRootDirStart
 
 ; fat12根目录共14个扇区 轮询查找
-Lable_Search_In_Root_Dir_Begin:
+L_Search_In_Root_Dir_Begin:
     cmp word [RootDirSizeForLoop], 0
     jz Label_No_LoaderBin
     dec word [RootDirSizeForLoop]
@@ -89,7 +90,7 @@ Label_Different:
     jmp Label_Search_For_LoaderBin
 Label_Goto_Next_Sector_In_Root_Dir:
     add word [SectorNo], 1
-    jmp Lable_Search_In_Root_Dir_Begin
+    jmp L_Search_In_Root_Dir_Begin
 
 ; 找不到loader程序 打印提示信息然后夯在这
 Label_No_LoaderBin:
@@ -223,5 +224,7 @@ NoLoaderMessageLen equ $-NoLoaderMessage
 NoLoaderMessageRow equ 1
 
 ; 启动盘引导扇区
-    times 510-($-$$) db 0
-    dw 0xaa55
+    times 510-($-$$) db 0 ; 这行被编译后的地址到这节的地址也就是0x7c00的大小 用0补齐510个字节 再填充2字节占位标识保证引导扇区大小是512字节
+    ; 第1扇区用55 aa结尾标识这个扇区是引导扇区 intel处理器是小端序 写成1个word是0xaa55
+    db 0x55
+    db 0xaa

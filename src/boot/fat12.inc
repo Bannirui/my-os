@@ -5,12 +5,25 @@
 ; 在偏移0x03~0x3D之间 紧跟在jmp和nop后面
 ; 长度固定
 
+; fat12文件系统的扇区分配
+;扇区号0-based            用途                       说明
+;----------------------------------------------------------------
+;0                    Boot Sector (BPB)           引导扇区 + BIOS 参数区
+;1 .. 9               FAT #1 (9 sectors)          FAT表副本1
+;10 .. 18             FAT #2 (9 sectors)          FAT表副本2
+;19 .. 32             Root Directory (14 sectors) 根目录区（固定条目数）
+;33 .. 2879           Data Area (clusters)        数据区：簇从 2 开始
+
+
 ; 编译期常量替换
-RootDirSectors equ 14 ; 根目录有多少个扇区
-; 根目录起始扇区号 0-based 2个fat表每个表占9个扇区+保留1个扇区不用=19个扇区 也就是[0...18] 那么根目录的第一个扇区是19#
-SectorNumOfRootDirStart equ 19
+; 根目录区每个目录项32字节 224个目录项需要7168字节 每个扇区512字节 需要14个扇区
+; (a+b-1)/b是经典的a/b向上取整方法
+RootDirSectors equ 14 ; 根目录有多少个扇区=(BPB_RootEntCnt*32+BPB_BytesPerSec-1)/BPB_BytesPerSec
+
+; 根目录起始扇区号 0-based 2个fat表每个表占9个扇区+保留1个扇区(引导扇区自己)=19个扇区 也就是[0...18] 那么根目录的第一个扇区是19#
+SectorNumOfRootDirStart equ 19 ; 根目录起始扇区号=BPB_RsvdSecCnt+(BPB_NumFATs*BPB_FATSz16)
 SectorNumOfFAT1Start equ 1 ; fat1表起扇区号 0-based
-SectorBalance equ 17
+SectorBalance equ 17 ; 用来辅助计算数据扇区 数据区起始扇区号=根目录起始扇区号+根目录所占扇区数
 
 ; BPB 必须从引导扇区的0x03偏移开始
 BS_OEMName db 'MINEBOOT' ; 占8字节 OEM名称字符串不足补空格
