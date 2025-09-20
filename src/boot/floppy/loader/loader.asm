@@ -42,8 +42,8 @@ GdtLen equ $-L_GDT ; GDT表的大小是多少个字节
 ; 要把GDT表的信息告诉寄存器 一个GDT表的元信息就两个 共6字节
 ; 2字节=GDT表的表长-1
 ; 4字节=GDT表的基地址
-GdtPtr dw GdtLen-1
-       dd L_GDT
+GdtPtr: dw GdtLen-1
+        dd L_GDT
 ; 段选择子 高13位放GDT表的数组脚标 TI(0是GDT 1是LDT) RPL(ring0内核态 ring3用户态)
 ; ((((L_DESC_CODE32-L_GDT)/8) <<3) | (0<<2) | 0) ; 代码段的段选择子
 SelectorCode32 equ L_DESC_CODE32 - L_GDT
@@ -66,8 +66,8 @@ L_GDT64: dq 0 ; 跟32位GDT一样 第1个表项是0
 L_DESC_CODE64: dq 0x0020980000000000 ; 内核代码段
 L_DESC_DATA64: dq 0x0000920000000000 ; 内核数据段
 GdtLen64 equ $-L_GDT64
-GdtPtr64 dw GdtLen64-1
-         dd L_GDT64
+GdtPtr64: dw GdtLen64-1
+          dd L_GDT64
 ; 这种写法比上面的简洁太多 正确性的原因是 跑在内核态ring0低2位是0 GDT所以第3位是0 也就是说GDT描述符选择子的低3位是0 那么GDT表项目偏移/8就等于>>3得到的就是GDT表的索引 再左移3位拼上低3位的0就等同于偏移量
 SelectorCode64 equ L_DESC_CODE64-L_GDT64
 SelectorData64 equ L_DESC_DATA64-L_GDT64
@@ -489,25 +489,40 @@ L_SVGA_Mode_Info_Finish:
     cmp ax, 0x004f
     jnz L_SET_SVGA_Mode_VESA_VBE_FAIL
 
-; 初始化IDT GDT进入保护模式
-    cli ; 先关闭BIOS的中断
-    lgdt [GdtPtr]
+; 之前为了在16位实模式下搬kernel程序到1M以上空间已经切换过一次处理器模式了 那一次是临时切换到保护模式又退回到实模式从而进入到big-real-mode模式
+; 这次是真的从16位实模式切换到32位保护模式
+; 为了进入保护模式 处理器必须在切换模式前 在内存中创建一段可以在保护模式下执行的代码和必要的系统数据结构
+; IDT GDT LDT描述符表各1个 LDG表可选
+; 任务状态段TSS结构
+; 如果开启分页机制 至少1个页目录和1个页表
+; 至少1个异常/中断处理模块
+
+    cli ; 先关闭BIOS的中断 保证在切换模式期间不会发生异常和中断 因为关闭了BIOS中断所以切换过程中不发生异常 继而压根不需要IDT被彻底完整初始化只需要有个结构就行
+    lgdt [GdtPtr] ; 执行lgdt指令把GDT表的基地址和长度加载到GDTR寄存器
+    ; cr0控制寄存器PE标志位使能真正进行保护模式切换
     mov eax, cr0
     or eax, 1
     mov cr0, eax
-    jmp dword SelectorCode32:GO_TO_TMP_Protect
+    jmp dword SelectorCode32:GO_TO_TMP_Protect ; 这是典型的切换保护模式方法 在执行mov cr0后必须立马执行far jmp或far call以切换到保护模式的代码去执行 通过执行jmp或call改变了处理器的执行流水线进而使处理器加载执行保护模式的代码段
 
 [SECTION .s32]
 [BITS 32] ; 代码跑在32位保护模式下
-; 切换到IA-32e模式
 GO_TO_TMP_Protect:
-    mov ax, 0x10
+    ; 刚进入到保护模式 现在寄存器还保留着实模式时候的值 必须重新加载数据段选择子然后执行jmp或call指令执行新任务便可以将其切换为保护模式
+    mov ax, 0x10 ; 0x10对应的二进制是00010 000 高13位是GDT表的索引也就是2 在GDT表中所以2是数据段描述符
+    ; 把所有的数据段寄存器都塞上段选择子
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov ss, ax
     mov esp, 0x7e00
-    call support_long_mode
+    call support_long_mode ; 然后立马执行call就真正进入到了32位保护模式了
+; 开启IA-32e的64位长模式的标准流程是
+; 1 在保护模式下 使用mov cr0汇编指令复位PG标志位关闭分页机制
+; 2 置位cr4控制寄存器的PAE标志位开启物理地址扩展功能
+; 3 将页目录的物理地址加载到cr3控制寄存器中
+; 4 置位IA32_EFER寄存器的LME标志位开启IA-32e模式
+; 5 置位cr0控制寄存器的PG标志位开启分页机制
     test eax, eax
     jz no_support
 ; 配置页目录和页表
@@ -668,13 +683,12 @@ L_DispAL:
     pop ecx
     ret
 
-; IDT表
+; IDT表 为IDT开辟内存空间 因为在切换保护模式的过程中BIOS中断服务被cli关闭了 所以压根不会发生异常 自然也就不需要IDT被完整初始化 只需要有个IDT表的结构存在就行
 IDT: times 0x50 dq 0
 IDT_END:
 
-IDT_POINTER:
-    dw IDT_END-IDT-1
-    dd IDT
+IDT_POINTER: dw IDT_END-IDT-1
+             dd IDT
 
 ; 临时变量
 RootDirSizeForLoop dw RootDirSectors ; fat12根目录占14个扇区
