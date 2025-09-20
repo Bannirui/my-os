@@ -1,4 +1,4 @@
-// 内核的主程序
+// 内核的主程序 进行各个系统模块的初始化 完成后创建出系统的第一个进程init进程 然后将控制权给init进程
 void Start_Kernel(void)
 {
     int *addr = (int *)0xffff800000a00000;
