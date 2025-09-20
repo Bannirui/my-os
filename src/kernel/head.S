@@ -5,9 +5,9 @@
 .section .text
 
 .globl _start
-
+// GAS编译器将_start作为程序默认的起始位置
 _start:
-    mov $0x10, %ax
+    mov $0x10, %ax // 0x10高13位是2 设置数据段选择子 对应的GDT表索引是2
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
@@ -51,13 +51,12 @@ entry64:
     lretq
 
 go_to_kernel:
-    .quad Start_Kernel
+    .quad Start_Kernel // 内核头程序跳到内核主程序Start_Kernel函数中
 
 // 为操作系统创建和初始化页表及页表项
-.align 8
+.align 8 // 在64位IA-32e长模式下 页表被分为4个等级 每个页表项是8字节 所以用align将对齐标准设置为8字节
 
-.org 0x1000
-
+.org 0x1000 // 指定页表的起始地址 固定各个页表的起始地址 相对内核头程序起始地址偏移多少的地方
 __PML4E:
     .quad 0x102007
     .fill 255,8,0
@@ -65,13 +64,11 @@ __PML4E:
     .fill 255,8,0
 
 .org 0x2000
-
 __PDPTE:
     .quad 0x103003
     .fill 511,8,0
 
 .org 0x3000
-
 __PDE:
     .quad 0x000083
     .quad 0x200083
