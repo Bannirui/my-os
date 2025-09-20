@@ -564,10 +564,11 @@ GO_TO_TMP_Protect:
     wrmsr
 ; 使能分页
     mov eax, cr0
-    bts eax, 0
-    bts eax, 31
+    bts eax, 0 ; 置位cr0控制寄存器第0位 PE标志位 开启保护模式
+    bts eax, 31 ; 置位cr0控制寄存器第32位 PG标志位 开启分页机制
     mov cr0, eax
-; 从loader程序跳到kernel内核去
+; 到这就完成了IA-32e 64位长模式的切换 但是此时处理器还是跑着32位保护模式的代码 因此需要立马执行一条调用或跨段跳转将cs寄存器的值更新成IA-32e模式的代码段描述符
+; 从loader程序跳到kernel内核去 彻底切换到64位IA-32e长模式
     jmp SelectorCode64:OffsetOfKernelFile
 ; 检测cpu支不支持ia-32e长模式
 support_long_mode:
