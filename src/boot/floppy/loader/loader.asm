@@ -12,7 +12,11 @@ BaseOfKernelFile equ 0
 OffsetOfKernelFile equ 0x100000 ; 内核代码放在物理地址0x100_000上 放在1M地址的原因是减少心智负担 BIOS是跑在16位实模式下能访问的都是1M内空间 直接把内核程序放到1M空间 保证BIOS访问不到 不用担心切换模式的过程中规划内存空间把BIOS的内存空间冲掉
 ; 16位实模式下还不能突破1M空间限制 从磁盘把内核程序加载到内存上不是一步到位放到1M地址空间 先在1M内空间暂存然后再复制过去
 BaseTmpOfKernelAddr equ 0
-OffsetTmpOfKernelFile equ 0x7e00 ; loader程序执行的时候还是在16位实模式下 因此能访问的空间还是受限1M 就先把磁盘中加载到的kernel程序放在这个地方上 起到缓存作用 之后用特殊方式把kernel程序般到1M位置上
+
+; loader程序执行的时候还是在16位实模式下 因此能访问的空间还是受限1M
+; 就先把磁盘中加载到的kernel程序放在这个地方上 起到缓存作用 之后通过big-real-mode模式把kernel程序般到1M位置上
+; 读磁盘搬代码的单位是扇区 就是每个扇区操作一遍 所以0x7e00这个地址只会用[0x7e00...]这512字节作为缓存 循环使用 每读完1个扇区的kernel程序就放在这 然后搬到高地址空间 然后继续读下一个扇区继续缓存到这个地方
+OffsetTmpOfKernelFile equ 0x7e00
 
 MemoryStructBufferAddr equ OffsetTmpOfKernelFile ; 放在这个地址上的内核程序被挪到1M地址上后 这块临时转存空间就没有用了 就用来记录物理地址空间信息 所谓的物理地址空间 就是这台机器有哪些ROM哪些RAM
 
@@ -207,36 +211,44 @@ L_Go_On_Loading_File:
     mov cl, 1
     call Func_ReadOneSector
     pop ax
-
+; 至此 已经借助BIOS中断把kernel程序读到了0:0x7e00上了 读磁盘是1个扇区1个扇区读的 所以搬代码也是1个扇区1个扇区搬的 并一是一口气读完再一口气去搬的
+; 下面就准备把这1个扇区的内核程序搬到1M地址上
+; 这个时候还是在16位实模式下 理论上现在还是只能访问1M内空间 前面开保护模式->设置fs段寄存器段选择子->关闭保护模式的操作开始发力了
+; 严格来说现在是big-real-mode模式 是有能力访问1M以上能力的
+    ; 把这一坨寄存器 搬完kernel代码后再恢复
     push cx
     push eax
-    push fs
+    push fs ; 尤其是这个段寄存器 现在指向的是数据段寄存器
     push edi
     push ds
     push esi
 
-    mov cx, 0x0200
+    mov cx, 0x0200 ; 10进制的512 loop指令在16位模式下是跟cx搭配使用的 所以cx=512就是循环512次 每次循环搬1字节内容 可以明确512的原因是磁盘扇区的大小就是512字节 这也是读完1个扇区立马搬代码的好处
+    ; 设置fs:edi=0:OffsetOfKernelFileCount 复制搬代码的dest 搬到什么地方是随着读的扇区变多跟着变的 初始化值肯定是0x100000 所以每读完1个扇区搬完1个扇区后要同步更新这个临时变量 指向下一次要搬到的地方
     mov ax, BaseOfKernelFile
     mov fs, ax
     mov edi, dword [OffsetOfKernelFileCount]
-
+    ; 设置ds:esi=0:0x7e00 复制搬代码的src
     mov ax, BaseTmpOfKernelAddr
     mov ds, ax
     mov esi, OffsetTmpOfKernelFile
+    ; 必要的准备工作好了 现在就是要从ds:esi->fs:edi 循环512次 每次循环搬1字节 循环1次就自增esi和edi
 L_Mov_Kernel:
+    ; 搬1字节的数据 ds:esi->fs:edi
     mov al, byte [ds:esi]
     mov byte [fs:edi], al
-
+    ; 搬完1次就++ 保证顺序搬完kernel程序
     inc esi
     inc edi
-
+    ; 16位模式下loop指令会跟cx搭配使用直到cx为0 意思是会顺序搬512字节
     loop L_Mov_Kernel
-
+    ; 到这 上面刚从磁盘里面读出来的1扇区kernel程序已经全部搬到了1M以上的地址了
+    ; todo 下面2条指令设置ds寄存器值我没看懂干嘛用的 但是尝试注释掉后会导致异常
     mov eax, 0x1000
     mov ds, eax
 
-    mov dword [OffsetOfKernelFileCount], edi
-
+    mov dword [OffsetOfKernelFileCount], edi ; OffsetOfKernelFileCount是个临时变量初始是0x100000 edi在每次loop循环都会++ 等1个扇区搬完此时它就会+512 所以也就实现了临时变量每搬完1个扇区代码就+512 指向了下一个扇区代码要搬到什么地方
+    ; 1个扇区的kernel程序已经搬到了1M以上地址空间 恢复搬之前的段寄存器现场 继续读盘
     pop esi
     pop ds
     pop edi
@@ -253,7 +265,9 @@ L_Mov_Kernel:
     add ax, dx
     add ax, SectorBalance
     jmp L_Go_On_Loading_File
+; 所有的kernel程序都从磁盘读出来并且搬到了1M以上地址空间了
 L_File_Loaded:
+    ; 
     mov ax, 0xb800
     mov gs, ax
     mov ah, 0x0f ; 0000黑底 1111白字
@@ -641,7 +655,7 @@ IDT_POINTER:
 RootDirSizeForLoop dw RootDirSectors ; fat12根目录占14个扇区
 SectorNo dw 0 ; 读盘的时候要知道读哪个扇区 0-based
 Odd db 0
-OffsetOfKernelFileCount dd OffsetOfKernelFile
+OffsetOfKernelFileCount dd OffsetOfKernelFile ; 临时变量初始0x100000 等把kernel代码从0x7e00搬到0x100000后会被赋值512
 MemStructNumber dd 0
 SVGAModeCounter dd 0
 DisplayPosition dd 0
