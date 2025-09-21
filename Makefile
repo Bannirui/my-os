@@ -34,9 +34,16 @@ build/kernel/%.o: build/kernel/%.s
 # c代码
 kernel_c_src_files := $(shell find src/kernel -name *.c)
 kernel_c_obj_files := $(patsubst src/kernel/%.c, build/kernel/%.o, $(kernel_c_src_files))
+# -fno-builtin 禁用内建函数 避免编译器优化成库函数调用
+# -ffreestanding 告诉编译器我们在写OS 不要假设有标准库
+# -fno-stack-protector 禁用栈保护 避免 __stack_chk_fail
 build/kernel/%.o: src/kernel/%.c
 	mkdir -p $(dir $@)
-	$(CC) -mcmodel=large -fno-builtin -m64 -c -o $@ $^
+	$(CC) -mcmodel=large -m64 \
+		-fno-builtin \
+		-ffreestanding \
+		-fno-stack-protector \
+		-I src/kernel -c -o $@ $^
 # 链接
 build/kernel/kernel.elf: $(kernel_asm_obj_files) $(kernel_c_obj_files)
 	$(LD) -b elf64-x86-64 -T targets/kernel.lds -o $@ $^

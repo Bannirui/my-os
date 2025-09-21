@@ -6,7 +6,8 @@
 
 ### 1 PRE-REQUIRED
 
-- 虚拟机用的是qemu 安装`brew install qemu`
+- 安装qemu `brew install qemu`
+- 安装bochs `brew install bochs`
 - 编译没有在宿主机上直接进行 需要用gcc编译16位实模式的代码 标准gcc不支持 安装docker 用i386基础镜像
 - 启动方式前期学习的是软盘 后来学习了硬盘 两相比较硬盘方式的读盘因为LBA更简单 因此切换到硬盘方式
 - make中写了对软盘启动方式的构建命令 只停留在loader的加载
