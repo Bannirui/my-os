@@ -27,17 +27,17 @@
 
 struct position
 {
-	int XResolution;
-	int YResolution;
+	int XResolution; // 横向分辨率
+	int YResolution; // 纵向分辨率
 
-	int XPosition;
-	int YPosition;
+	int XPosition; // 当前光标位置
+	int YPosition; // 当前光标位置
 
-	int XCharSize;
-	int YCharSize;
+	int XCharSize; // 字符宽度 像素
+	int YCharSize; // 字符高度 像素
 
-	unsigned int* FB_addr;
-	unsigned long FB_length;
+	unsigned int* FB_addr; // 帧缓冲区的起始虚拟地址
+	unsigned long FB_length; // 帧缓冲区总长度 字节数 32位像素是1像素占4字节 这个值就是XResolution*YResolution*4
 };
 extern struct position Pos; // 这里只是声明 不分配存储
 
