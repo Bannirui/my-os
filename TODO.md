@@ -1,9 +1,12 @@
 ## TODO
 
-- [X] bootloader
-    - [X] FAT12文件系统构成 
-    - [X] bootsector
-    - [X] loader
-- [ ] kernel
-    - [X] 链接脚本
-    - [X] 执行头程序
+- [X] 磁盘MBR制作
+- [X] FAT12文件系统构成 BIOS的BPB
+- [X] 磁盘引导扇区写Boot程序 读Loader程序
+- [X] Loader程序继续用BIOS中断服务读盘加载Kernel程序
+- [X] CPU模式切换 16位实模式->32位保护模式->64位IA-32e长模式
+- [X] Loader程序把Kernel程序搬运到1M地址上 借助特殊的模式 32位Big-Read-Mode模式突破1M地址空间访问
+- [X] 32位保护模式和64位长模式的GDT表空间规划
+- [X] 64位模式下的分页机制开启和物理空间扩展打开 规划页表 用3级页表2MB大页映射虚拟地址和物理地址
+- [X] 内核头程序跳内核主程序
+- [X] 用帧缓冲区的功能实现字符串打印

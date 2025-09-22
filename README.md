@@ -24,6 +24,11 @@
 - docker中执行编译`make`
 - 宿主机上执行`make run`
 
+效果图
+
+![](./docs/image/1758536529.png)
+
+
 ### 3 TIPS
 
 - 调试的时候不方便写调试代码 直接检查`hexdump -C build/kernel/kernel.bin`
