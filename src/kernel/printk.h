@@ -15,6 +15,7 @@
 
 #define is_digit(c) ((c) >= '0' && (c) <= '9')
 
+// 32位像素模式1个像素占4字节 RGBA 枚举的颜色1个int是4个字节从高到低对应ARGB
 #define WHITE 0x00ffffff //白
 #define BLACK 0x00000000 //黑
 #define RED 0x00ff0000 //红

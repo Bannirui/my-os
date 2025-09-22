@@ -35,12 +35,8 @@ void Start_Kernel(void)
 
     // 红色 R=0xff B=0x00 G=0x00 A=0x00 绘制一个色块 长WIDTH 高20像素
     for(i=0 ;i<WIDTH*HEIGHT; i++) {
-        // 绘制1个像素占4字节
-        *((char*)addr+0)=(char)0x00; // B
-        *((char*)addr+1)=(char)0x00; // G
-        *((char*)addr+2)=(char)0xff; // R
-        *((char*)addr+3)=(char)0x00; // A
-        addr++; // 写了4字节 后移4字节
+        // 绘制1个像素占4字节 写完1个像素后移4字节准备写下一个像素
+        *addr++=BLUE;
     }
     color_printk(YELLOW,BLACK,"HELLO WORLD\n");
 
