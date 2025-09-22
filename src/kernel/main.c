@@ -4,7 +4,7 @@
 
 void Start_Kernel(void)
 {
-    int* addr = (int *)0xffff800000a00000;
+    int* addr = (int*)0xffff800000a00000;
     int i;
     Pos.XResolution = 1440;
     Pos.YResolution = 900;
