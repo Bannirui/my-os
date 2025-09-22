@@ -71,10 +71,11 @@ dist/floppy.img: build/boot/floppy/boot/boot.bin build/boot/floppy/loader/loader
 	umount dist/mnt
 	rmdir dist/mnt
 
-run: dist/floppy.img
+run-qume: dist/floppy.img
 	qemu-system-x86_64 -fda $^ -boot a
-debug: dist/floppy.img bochsrc
+run-bochs: dist/floppy.img bochsrc
 	bochs -f bochsrc -q
+run: run-bochs
 
 clean:
 	rm -rf build dist
