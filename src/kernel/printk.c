@@ -6,25 +6,28 @@ char buf[4096]={0};
 // 在这里真正定义Pos
 struct position Pos;
 
-void putchar(unsigned int * fb,int Xsize,int x,int y,unsigned int FRcolor,unsigned int BKcolor,unsigned char font)
+void putchar(unsigned int* fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font)
 {
     int i = 0,j = 0;
     unsigned int* addr = NULL;
     unsigned char* fontp = NULL;
     int testval = 0;
-    fontp = font_ascii[font];
-    for(i = 0; i< 16; i++)
-    {
-        addr = fb + Xsize * ( y + i ) + x;
-        testval = 0x100;
-        for(j = 0; j < 8; j ++)
-        {
-            testval = testval >> 1;
-            if(*fontp & testval) { *addr = FRcolor; }
-            else { *addr = BKcolor; }
-            addr++;
+    fontp=font_ascii[font]; // 找到字符对应的字模 16个字节
+    for(i=0;i<16;i++) { // 每个字符高16行
+        addr=fb+Xsize*(y+i)+x; // 当前行的起始像素位置
+        testval=0x100;
+        for(j=0;j<8;j++) { // 每行8列
+            testval=testval>>1;
+            if(*fontp&testval) {
+                // 点亮前景色
+                *addr=FRcolor;
+            } else {
+                // 点亮背景色
+                *addr=BKcolor;
+            }
+            addr++; // 像素右移1格
         }
-        fontp++;
+        fontp++; // 处理字模的下一行
     }
 }
 
@@ -101,7 +104,8 @@ int vsprintf(char* buf, const char* fmt, va_list args)
     int precision;
     int len, i;
     int qualifier;
-    for(str = buf; *fmt; fmt++)
+    // 找格式化字符串中要替换的占位 用实际参数替换 最终buf中就是处理后的字符串
+    for(str=buf; *fmt; fmt++)
     {
         if(*fmt != '%')
         {
@@ -110,6 +114,7 @@ int vsprintf(char* buf, const char* fmt, va_list args)
         }
         flags = 0;
 repeat:
+        // fmt指向了%符号 开始解析后面的格式化内容
         fmt++;
         switch(*fmt)
         {
@@ -202,11 +207,8 @@ repeat:
             }
             case 'X':
             {
-                if(qualifier == 'l') {
-                    str = number(str,va_arg(args,unsigned long),16,field_width,precision,flags);
-                } else {
-                    str = number(str,va_arg(args,unsigned int),16,field_width,precision,flags);
-                }
+                if(qualifier == 'l') { str = number(str,va_arg(args,unsigned long),16,field_width,precision,flags); }
+                else { str = number(str,va_arg(args,unsigned int),16,field_width,precision,flags); }
                 break;
             }
             case 'd':
@@ -216,12 +218,8 @@ repeat:
             }
             case 'u':
             {
-
-                if(qualifier == 'l') {
-                    str = number(str,va_arg(args,unsigned long),10,field_width,precision,flags);
-                } else {
-                    str = number(str,va_arg(args,unsigned int),10,field_width,precision,flags);
-                }
+                if(qualifier == 'l') { str = number(str,va_arg(args,unsigned long),10,field_width,precision,flags); }
+                else { str = number(str,va_arg(args,unsigned int),10,field_width,precision,flags); }
                 break;
             }
             case 'n':
@@ -243,11 +241,8 @@ repeat:
             default:
             {
                 *str++ = '%';
-                if(*fmt) {
-                    *str++ = *fmt;
-                } else {
-                    fmt--;
-                }
+                if(*fmt) { *str++ = *fmt; }
+                else { fmt--; }
                 break;
             }
         }
@@ -258,14 +253,15 @@ repeat:
 
 int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char* fmt, ...)
 {
-    int i = 0;
-    int count = 0;
-    int line = 0;
-    va_list args;
-    va_start(args, fmt);
-    i = vsprintf(buf,fmt, args);
+    int i = 0; // 格式化后字符串的长度
+    int count = 0; // 字符计数
+    int line = 0; // 处理\t
+    // 变长参数初始化
+    va_list args; // 用来保存可变参数指针
+    va_start(args, fmt); // 让args指向fmt后面的参数列表第1个参数
+    i = vsprintf(buf, fmt, args); // 格式化字符串处理 处理好后的结果放在buf中
     va_end(args);
-    for(count = 0;count < i || line;count++)
+    for(count=0; count < i || line; count++)
     {
         if(line > 0) {
             count--;
@@ -283,15 +279,15 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char* fmt, ..
                     Pos.YPosition = (Pos.YResolution / Pos.YCharSize - 1) * Pos.YCharSize;
                 }
             }
-            putchar(Pos.FB_addr , Pos.XResolution , Pos.XPosition * Pos.XCharSize , Pos.YPosition * Pos.YCharSize , FRcolor , BKcolor , ' ');	
+            putchar(Pos.FB_addr , Pos.XResolution , Pos.XPosition * Pos.XCharSize , Pos.YPosition * Pos.YCharSize , FRcolor , BKcolor , ' ');
         } else if((unsigned char)*(buf + count) == '\t') {
             line = ((Pos.XPosition + 8) & ~(8 - 1)) - Pos.XPosition;
 Label_tab:
             line--;
-            putchar(Pos.FB_addr , Pos.XResolution , Pos.XPosition * Pos.XCharSize , Pos.YPosition * Pos.YCharSize , FRcolor , BKcolor , ' ');	
+            putchar(Pos.FB_addr,Pos.XResolution,Pos.XPosition * Pos.XCharSize,Pos.YPosition * Pos.YCharSize,FRcolor,BKcolor,' ');
             Pos.XPosition++;
         } else {
-            putchar(Pos.FB_addr , Pos.XResolution , Pos.XPosition * Pos.XCharSize , Pos.YPosition * Pos.YCharSize , FRcolor , BKcolor , (unsigned char)*(buf + count));
+            putchar(Pos.FB_addr,Pos.XResolution,Pos.XPosition * Pos.XCharSize,Pos.YPosition * Pos.YCharSize,FRcolor,BKcolor,(unsigned char)*(buf + count));
             Pos.XPosition++;
         }
         if(Pos.XPosition >= (Pos.XResolution / Pos.XCharSize)) {

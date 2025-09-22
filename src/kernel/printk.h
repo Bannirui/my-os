@@ -42,6 +42,16 @@ struct position
 };
 extern struct position Pos; // 这里只是声明 不分配存储
 
+/**
+ * 通过帧缓冲区显示字符
+ * @param fb 帧缓冲区的地址
+ * @param Xsize 横向总共是多少像素
+ * @param x 字符串要显示在哪儿 横向像素
+ * @param y 字符串要显示在哪儿 纵向像素
+ * @param FRcolor 前景色
+ * @param BKcolor 后景色
+ * @param font 要显示的字符
+*/
 void putchar(unsigned int* fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font);
 int skip_atoi(const char **s);
 
@@ -51,7 +61,22 @@ int skip_atoi(const char **s);
     __res; })
 
 static char* number(char* str, long num, int base, int size, int precision ,int type);
+
+/**
+ * 处理格式化字符串可变参数的参数列表 把格式化字符串替换成实际的字符串
+ * @param buf 处理完的格式化字符串 已经把格式化占位用实际参数替换了
+ * @param fmt 格式化字符串
+ * @param args 可变参数的参数列表
+ * @return buf中处理好的字符串长度
+ */
 int vsprintf(char* buf,const char* fmt, va_list args);
+
+/**
+ * 打印字符串
+ * @param FRcolor 前景色
+ * @param BKcolor BKcolor 背景色
+ * @param fmt 格式化字符串
+ */
 int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char* fmt,...);
 
 #endif
