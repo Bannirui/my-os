@@ -13,27 +13,29 @@ _start:
     mov %ax, %es
     mov %ax, %fs
     mov %ax, %ss
-    mov $0x7E00, %esp // 栈倒扣在这个位置往下增长
+    mov $0x7e00, %esp // 栈倒扣在这个位置往下增长 把栈临时设置在这个位置过渡一下
 
     lgdt GDT_POINTER(%rip) // rip是相对寻址 取GDT_POINTER的内容作为GDTR GDTR会拿到那个地方10字节的信息 等于是知道了GDT表的起始和表长
+    // 此时执行完lgdt GDT表已经就绪 但是CS还是旧的 没有更新 需要搭配一个far jump或者far call来刷新cs里面的代码段选择子
 
     lidt IDT_POINTER(%rip)
-
+    // 再次设置数据段寄存器并把栈切换为64位风格的寄存器
     mov $0x10, %ax
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
     mov %ax, %gs
     mov %ax, %ss
-    movq $0x7E00, %rsp
+    movq $0x7e00, %rsp
 
-    movq $0x101000, %rax
+    movq $0x101000, %rax // 内核的程序被loader加载到内存时->缓存到0x7e00->搬运到0x100000 下面布局PML的时候把PML4的相对内核头程序偏移定为1000 所以PML4的物理地址就是101000 告诉cr3寄存器PML4的物理地址在哪
     movq %rax, %cr3
-    movq switch_seg(%rip), %rax
-    pushq $0x08
-    pushq %rax
-    lretq
+    movq switch_seg(%rip), %rax // 把switch_seg这个64位目标地址读到rax寄存器
+    pushq $0x08 // GDT表代码段的选择子入栈
+    pushq %rax // switch_seg地址入栈
+    lretq // 栈顶依次是switch_seg地址 段选择子 lretq指令等价于pop rip; pop cs; 一下子就把cs和ip都刷新了 完成了64位的切换
 
+// 执行到这的时候已经是在64位模式下了
 switch_seg:
     .quad entry64
 
@@ -43,12 +45,12 @@ entry64:
     movq %rax, %es
     movq %rax, %gs
     movq %rax, %ss
-    movq $0xffff800000007E00, %rsp
+    movq $0xffff800000007e00, %rsp // 上面临时设置了栈在7e00 在平坦模型下低地址空间将来都是划分给用户程序的 现在正式把内核的栈设置成对应的逻辑地址 内核空间的划分是在64位高半区 内核的物理起始地址是0x100000 映射的逻辑地址是0xffff800000000000 所以现在栈的物理地址是0x7e00映射的逻辑地址就是0xffff800000007e00
 
     movq go_to_kernel(%rip), %rax
-    pushq $0x08
-    pushq %rax
-    lretq
+    pushq $0x08 // 物理代码段选择子
+    pushq %rax // go_to_kernel标号地址
+    lretq // pop rip; pop cs; 刷新cs和ip完成执行跳转 也就是在64位长模式下跳转到内核主程序去执行
 
 go_to_kernel:
     .quad Start_Kernel // 内核头程序跳到内核主程序Start_Kernel函数中
