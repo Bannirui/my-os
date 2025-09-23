@@ -13,7 +13,8 @@
 - ~~make中写了对软盘启动方式的构建命令 只停留在loader的加载~~
 - 打包docker镜像`docker build ./devenv -t myos-dev`
 - 宿主机执行启动盘方式
-  - 软盘启动`qemu-system-x86_64 -fda dist/floppy.img -boot a`
+  - qemu软盘启动`qemu-system-x86_64 -fda dist/floppy.img -boot a`
+  - bochs软盘启动`bochs -f bochsrc -q`
   - ~~硬盘启动`qemu-system-x86_64 -hda dist/disk.img`~~
 
 ### 2 QUICK START
