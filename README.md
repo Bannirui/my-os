@@ -17,7 +17,20 @@
   - bochs软盘启动`bochs -f bochsrc -q`
   - ~~硬盘启动`qemu-system-x86_64 -hda dist/disk.img`~~
 
+```shell
+sudo apt install \
+    nasm \
+    qemu-system-x86 \
+    binutils
+```
+
 ### 2 QUICK START
+
+```sh
+chmod +x build.sh
+
+build.sh
+```
 
 以下命令全在项目根路径下执行
 
