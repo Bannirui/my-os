@@ -38,19 +38,19 @@ target_include_directories(kernel_c PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# 链接 kernel.elf
+# 链接 kernel.elf 内核程序的链接用链接脚本指定的内存布局
 add_custom_command(
         OUTPUT ${KERNEL_BUILD_DIR}/kernel.elf
         COMMAND ${CMAKE_COMMAND} -E make_directory ${KERNEL_BUILD_DIR}
         COMMAND ld -b elf64-x86-64
-                -T ${CMAKE_SOURCE_DIR}/targets/kernel.lds
+                -T ${CMAKE_CURRENT_SOURCE_DIR}/kernel.lds
                 -o ${KERNEL_BUILD_DIR}/kernel.elf
                 ${KERNEL_BUILD_DIR}/head.o
                 $<TARGET_OBJECTS:kernel_c>
         DEPENDS
                 ${KERNEL_BUILD_DIR}/head.o
                 kernel_c
-                ${CMAKE_SOURCE_DIR}/targets/kernel.lds
+                ${CMAKE_CURRENT_SOURCE_DIR}/kernel.lds
         COMMAND_EXPAND_LISTS
         COMMENT "Linking kernel.elf"
 )
