@@ -1,5 +1,4 @@
-#ifndef __PRINTK_H__
-#define __PRINTK_H__
+#pragma once
 
 #include <stdarg.h> // 是GUN C编译环境自带的头文件 因为有些函数需要可变函数 所以需要这个头文件的支持
 #include "font.h"
@@ -78,5 +77,3 @@ int vsprintf(char* buf,const char* fmt, va_list args);
  * @param fmt 格式化字符串
  */
 int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char* fmt,...);
-
-#endif

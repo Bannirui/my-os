@@ -1,6 +1,6 @@
+#pragma once
+
 // 为内核写的通用宏定义
-#ifndef _LINKAGE_H_
-#define _LINKAGE_H_
 
 #define L1_CACHE_BYTES 32
 
@@ -17,5 +17,3 @@
 #define ENTRY(name) \
     .global SYMBOL_NAME(name); \
     SYMBOL_NAME_LABEL(name)
-
-#endif

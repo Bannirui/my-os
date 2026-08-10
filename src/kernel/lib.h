@@ -1,6 +1,6 @@
+#pragma once
+
 // 为内核写的通用库函数
-#ifndef __LIB_H__
-#define __LIB_H__
 
 #define NULL 0
 
@@ -332,5 +332,3 @@ inline void wrmsr(unsigned long address, unsigned long value)
 {
     __asm__ __volatile__("wrmsr \n\t"::"d"(value >> 32),"a"(value & 0xffffffff),"c"(address):"memory");
 }
-
-#endif

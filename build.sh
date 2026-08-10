@@ -20,7 +20,7 @@ cmake --build "${PWD}/build" -j$(nproc)
 
 # 创建磁盘镜像并格式化为FAT12，同时将boot.bin作为引导扇区
 # mformat -B 将boot.bin写入0#扇区，并基于其中的BPB创建FAT表和根目录
-mformat -f 1440 -B "${PWD}/build/boot.bin" -i "${IMAGE_PATH}" ::
+mformat -C -f 1440 -B "${PWD}/build/boot.bin" -i "${IMAGE_PATH}" ::
 
 # 把loader.bin和kernel.bin拷贝到fat12文件系统中
 mcopy -i "${IMAGE_PATH}" "${PWD}/build/loader.bin" ::/
@@ -31,5 +31,5 @@ echo "os.img ready: ${IMAGE_PATH}"
 # 启动
 qemu-system-x86_64 \
     -fda "${IMAGE_PATH}" \
-    -boot a \
-    -monitor stdio
+    -boot a
+    #-monitor stdio

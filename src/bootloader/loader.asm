@@ -5,7 +5,7 @@
 org 0x10000 ; 在boot引导程序中最后一跳是0x1000:0 所以loader程序起手告诉编译器把自己放在物理地址0x10000上
     jmp L_Start
 
-%include "fat12.inc" ; 还要用到fat12加载kernel代码 但是已经不是引导扇区 所以fat的BPB信息不需要一定放在偏移3字节的地方 不需要nop占位
+%include "fat12_const.inc" ; 只用常量，不需要 BPB 数据字节
 
 ; 16位实模式下寻址方式 段寄存器<<4+偏移 0<<4+0x100000 把kernel程序要放到1M地址空间上去 将来内核程序的运行肯定是在平台模型线性地址空间的
 BaseOfKernelFile equ 0
@@ -287,12 +287,14 @@ L_File_Loaded:
 ; kernel程序被加载到了内存 软驱的使命完成了 后面不需要使用软驱了 可以关闭软驱
 ; 通过向3f2端口写命令控制关闭软驱马达
 KillMotor:
+    push dx
     push ax
-    mov ah, 0
-    in al, 0x03f2 ; 端口3f2现在的值读出来
-    and al, 0 ; 与运算改值
-    out 0x03f2, al ; 新的值再写回到端口
+    mov dx, 0x03f2 ; 软驱控制端口
+    in al, dx      ; 端口当前值读出来
+    and al, 0      ; 与运算改值
+    out dx, al     ; 新的值再写回到端口
     pop ax
+    pop dx
 
 ; 打印
     mov ax, 0x1301
@@ -600,7 +602,7 @@ Func_ReadOneSector:
     sub esp, 2
     mov byte [bp - 2], cl
     push bx
-    mov bl, [BPB_SecPerTrk]
+    mov bl, BPB_SecPerTrk
     div bl
     inc ah
     mov cl, ah
@@ -609,7 +611,7 @@ Func_ReadOneSector:
     mov ch, al
     and dh, 1
     pop bx
-    mov dl, [BS_DrvNum]
+    mov dl, BS_DrvNum
 L_Go_On_Reading:
     mov ah, 2
     mov al, byte [bp - 2]
@@ -637,7 +639,7 @@ Func_GetFATEntry:
     mov byte [Odd], 1
 L_Even:
     xor dx, dx
-    mov bx, [BPB_BytesPerSec]
+    mov bx, BPB_BytesPerSec
     div bx
     push dx
     mov bx, 0x8000

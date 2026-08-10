@@ -8,7 +8,8 @@ add_custom_command(
                 ${CMAKE_CURRENT_SOURCE_DIR}/boot.asm
                 -o ${CMAKE_BINARY_DIR}/boot.bin
         DEPENDS
-                ${CMAKE_CURRENT_SOURCE_DIR}/fat12.inc
+                ${CMAKE_CURRENT_SOURCE_DIR}/fat12_const.inc
+                ${CMAKE_CURRENT_SOURCE_DIR}/fat12_bpb.inc
                 ${CMAKE_CURRENT_SOURCE_DIR}/boot.asm
         COMMENT "Assembling boot"
 )
@@ -22,7 +23,7 @@ add_custom_command(
                 -o ${CMAKE_BINARY_DIR}/loader.bin
         DEPENDS
                 ${CMAKE_CURRENT_SOURCE_DIR}/loader.asm
-                ${CMAKE_CURRENT_SOURCE_DIR}/fat12.inc
+                ${CMAKE_CURRENT_SOURCE_DIR}/fat12_const.inc
         COMMENT "Assembling loader"
 )
 

@@ -12,7 +12,7 @@ OffsetOfLoader equ 0
 jmp L_Start
 nop
 
-%include "fat12.inc" ; 这里面是fat12的BPB 必须在引导扇区的偏移3上紧跟着jmp和nop
+%include "fat12_bpb.inc" ; 这里面是fat12的BPB 必须在引导扇区的偏移3上紧跟着jmp和nop
 
 L_Start:
 ; 标准寄存器初始化
@@ -143,7 +143,7 @@ L_Go_On_Loading_File:
     mov dx, RootDirSectors
     add ax, dx
     add ax, SectorBalance
-    add bx, [BPB_BytesPerSec]
+    add bx, [BPB_BytesPerSec_SLOT]
     jmp L_Go_On_Loading_File
 L_File_Loaded:
     jmp BaseOfLoader:OffsetOfLoader ; loader程序放在0x10000上 跳过去 现在还是16位实模式 用的是段地址 跳过去后cs=0x1000 ip=0
@@ -161,7 +161,7 @@ Func_ReadOneSector:
     sub esp, 2 ; 在栈里面开2字节的局部变量空间
     mov byte [bp - 2], cl ; 局部变量入栈 读几个扇区
     push bx ; 局部变量入栈 每个磁道的扇区数量
-    mov bl, [BPB_SecPerTrk] ; 每个磁道的扇区数量
+    mov bl, [BPB_SecPerTrk_SLOT] ; 每个磁道的扇区数量
     div bl ; 汇编除法规则 ax/bl 商在al 余数在ah
     inc ah ; ah=余数+1
     mov cl, ah ; cl=CHS起始扇区号=余数+1
@@ -170,7 +170,7 @@ Func_ReadOneSector:
     mov ch, al ; ch=CHS柱面号=商>>1
     and dh, 1 ; 软盘只有2个磁头 与1求出 dh=磁头号
     pop bx ; 此时bx出栈 栈里面的局部变量只有1个 表示读几个扇区
-    mov dl, [BS_DrvNum] ; dl=驱动器号
+    mov dl, [BS_DrvNum_SLOT] ; dl=驱动器号
 ; BIOS中断读盘
 ; 入参
 ; ah=中断功能号2
@@ -206,7 +206,7 @@ Func_GetFATEntry:
     mov byte [Odd], 1
 L_Even:
     xor dx, dx
-    mov bx, [BPB_BytesPerSec]
+    mov bx, [BPB_BytesPerSec_SLOT]
     div bx
     push dx
     mov bx, 0x8000
