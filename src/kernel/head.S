@@ -92,14 +92,14 @@ __PDE: // page directory 三层页表 512项 三层页表从0x103_000开始 占1
     .quad 0x400083 // 抹掉低12位 表达2MB物理地址[0x00400000...0x005FFFFF]
     .quad 0x600083 // 抹掉低12位 表达2MB物理地址[0x00600000...0x007FFFFF]
     .quad 0x800083 // [0x800000...0x009FFFFF]
-    .quad 0xe0000083 // [0xe0000000...E01FFFFF]
-    .quad 0xe0200083 // [0xe0200000...E03FFFFF]
-    .quad 0xe0400083 // [0xe0400000...E05FFFFF]
-    .quad 0xe0600083 // [0xe0600000...E07FFFFF]
-    .quad 0xe0800083 // [0xe0800000...E09FFFFF]
-    .quad 0xe0a00083 // [0xe0a00000...E0BFFFFF]
-    .quad 0xe0c00083 // [0xe0c00000...E0DFFFFF]
-    .quad 0xe0e00083 // [0xe0e00000...E0FFFFFF]
+    .quad 0xfd000083 // [0xfd000000...0xfd1fffff] 映射到0xfd000000  启动qemu后info pci看到BAR0: 32 bit prefetchable memory at 0xfd000000 [0xfdffffff]
+    .quad 0xfd200083 // [0xfd200000...0xfd3fffff]
+    .quad 0xfd400083 // [0xfd400000...0xfd5fffff]
+    .quad 0xfd600083 // [0xfd600000...0xfd7fffff]
+    .quad 0xfd800083 // [0xfd800000...0xfd9fffff]
+    .quad 0xfda00083 // [0xfda00000...0xfdbfffff]
+    .quad 0xfdc00083 // [0xfdc00000...0xfddfffff]
+    .quad 0xfde00083 // [0xfde00000...0xfdffffff]
     .fill 499,8,0
 // 在三层页表中用2MB大页表达了3600G的物理内存
 

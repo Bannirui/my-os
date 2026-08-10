@@ -31,4 +31,5 @@ echo "os.img ready: ${IMAGE_PATH}"
 # 启动
 qemu-system-x86_64 \
     -fda "${IMAGE_PATH}" \
-    -boot a
+    -boot a \
+    -monitor stdio
