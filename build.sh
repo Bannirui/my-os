@@ -23,7 +23,6 @@ cmake --build "${PWD}/build" -j$(nproc)
 mformat -C -f 1440 -B "${PWD}/build/boot.bin" -i "${IMAGE_PATH}" ::
 
 # 现在img虚拟软盘已经拥有了FAT12文件系统 就借助mcopy把程序文件复制到文件系统中去
-# 把loader.bin和kernel.bin拷贝到fat12文件系统中
 mcopy -i "${IMAGE_PATH}" "${PWD}/build/loader.bin" ::/
 mcopy -i "${IMAGE_PATH}" "${PWD}/build/kernel/kernel.bin" ::/
 

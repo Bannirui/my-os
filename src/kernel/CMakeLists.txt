@@ -38,7 +38,7 @@ target_include_directories(kernel_c PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# 链接 kernel.elf 内核程序的链接用链接脚本指定的内存布局
+# 链接 内核程序的链接用链接脚本指定的内存布局
 add_custom_command(
         OUTPUT ${KERNEL_BUILD_DIR}/kernel.elf
         COMMAND ${CMAKE_COMMAND} -E make_directory ${KERNEL_BUILD_DIR}
@@ -55,7 +55,7 @@ add_custom_command(
         COMMENT "Linking kernel.elf"
 )
 
-# 提取 kernel.bin（剥离 ELF 头、调试信息）
+# 提取bin 剥离ELF头和调试信息 提取出二进制程序段数据 包括text段 data段和bss段
 add_custom_command(
         OUTPUT ${KERNEL_BUILD_DIR}/kernel.bin
         COMMAND ${CMAKE_COMMAND} -E make_directory ${KERNEL_BUILD_DIR}
