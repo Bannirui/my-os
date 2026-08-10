@@ -4,27 +4,8 @@
 
 [TODO list](./TODO.md)
 
-### 1 PRE-REQUIRED
 
-- 安装qemu `brew install qemu`
-- 安装bochs `brew install bochs`
-- ~~编译没有在宿主机上直接进行 需要用gcc编译16位实模式的代码 标准gcc不支持 安装docker 用i386基础镜像~~
-- ~~启动方式前期学习的是软盘 后来学习了硬盘 两相比较硬盘方式的读盘因为LBA更简单 因此切换到硬盘方式~~
-- ~~make中写了对软盘启动方式的构建命令 只停留在loader的加载~~
-- 打包docker镜像`docker build ./devenv -t myos-dev`
-- 宿主机执行启动盘方式
-  - qemu软盘启动`qemu-system-x86_64 -fda dist/floppy.img -boot a`
-  - bochs软盘启动`bochs -f bochsrc -q`
-  - ~~硬盘启动`qemu-system-x86_64 -hda dist/disk.img`~~
-
-```shell
-sudo apt install \
-    nasm \
-    qemu-system-x86 \
-    binutils
-```
-
-### 2 QUICK START
+## 1 QUICK START
 
 ```sh
 chmod +x build.sh
@@ -32,17 +13,11 @@ chmod +x build.sh
 build.sh
 ```
 
-以下命令全在项目根路径下执行
-
-- 启动docker容器`docker run --rm -it --privileged --name myos-dev -v $PWD:/home/dev myos-dev`
-- docker中执行编译`make`
-- 宿主机上执行`make run`
-
 效果图
 
 ![](./docs/image/1758536529.png)
 
 
-### 3 TIPS
+## 2 TIPS
 
 - 调试的时候不方便写调试代码 直接检查`hexdump -C build/kernel/kernel.bin`

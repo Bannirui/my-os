@@ -61,3 +61,7 @@ dkms.conf
 # cmake构建目录
 [Bb][Uu][Ii][Ll][Dd]/
 [Dd][Ii][Ss][Tt]/
+
+AGENTS.md
+.opencode
+openspec
