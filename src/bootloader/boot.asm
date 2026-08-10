@@ -4,7 +4,7 @@ org 0x7c00 ; 处理器跳过来到引导程序的时候还在实模式 它会在
 
 BaseOfStack equ 0x7c00
 
-; loader程序物理地址 0x1000:0 现在引导程序跑在16位实模式下 把loader程序从磁盘读到内存0x10000后还得依赖jmp跳转顺便重置cs=0x1000 ip=0
+; loader程序物理地址 0x1000:0=0x1000<<4+0=0x10000 现在引导程序跑在16位实模式下 把loader程序从磁盘读到内存0x10000后还得依赖jmp跳转顺便重置cs=0x1000 ip=0
 BaseOfLoader equ 0x1000
 OffsetOfLoader equ 0
 
@@ -146,7 +146,8 @@ L_Go_On_Loading_File:
     add bx, [BPB_BytesPerSec_SLOT]
     jmp L_Go_On_Loading_File
 L_File_Loaded:
-    jmp BaseOfLoader:OffsetOfLoader ; loader程序放在0x10000上 跳过去 现在还是16位实模式 用的是段地址 跳过去后cs=0x1000 ip=0
+    ; loader程序放在0x10000上 跳过去 现在还是16位实模式 用的是段地址 跳过去后cs=0x1000 ip=0
+    jmp BaseOfLoader:OffsetOfLoader
 
 ; 把1个扇区读到内存上
 ; 入参 ax-扇区编号 读哪个扇区
