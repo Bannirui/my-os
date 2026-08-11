@@ -48,24 +48,23 @@ void putchar(unsigned int *fb, int Xsize, int x, int y, unsigned int FRcolor, un
 }
 
 int skip_atoi(const char **s) {
-    int i = 0;
+    int ret = 0;
     while (is_digit(**s)) {
-        i = i * 10 + *((*s)++) - '0';
+        ret = ret * 10 + *((*s)++) - '0';
     }
-    return i;
+    return ret;
 }
 
 static char *number(char *str, long num, int base, int size, int precision, int type) {
-    char c, sign, tmp[50];
     const char *digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    int i;
     if (type & SMALL) digits = "0123456789abcdefghijklmnopqrstuvwxyz";
     if (type & LEFT) type &= ~ZEROPAD;
     if (base < 2 || base > 36) {
         return 0;
     }
-    c = (type & ZEROPAD) ? '0' : ' ';
-    sign = 0;
+    char c = (type & ZEROPAD) ? '0' : ' ';
+    // 数字的符号 - +或空格
+    char sign = 0;
     if (type & SIGN && num < 0) {
         sign = '-';
         num = -num;
@@ -76,7 +75,8 @@ static char *number(char *str, long num, int base, int size, int precision, int 
     if (type & SPECIAL) {
         if (base == 16) { size -= 2; } else if (base == 8) { size--; }
     }
-    i = 0;
+    char tmp[50];
+    int i = 0;
     if (num == 0) {
         tmp[i++] = '0';
     } else {
@@ -110,21 +110,21 @@ static char *number(char *str, long num, int base, int size, int precision, int 
 }
 
 int vsprintf(char *buf, const char *fmt, va_list args) {
-    char *str, *s;
-    int flags;
-    int field_width;
-    int precision;
-    int len, i;
-    int qualifier;
-    // 找格式化字符串中要替换的占位 用实际参数替换 最终buf中就是处理后的字符串
-    for (str = buf; *fmt; fmt++) {
+    // 缓冲区长度4096 加个边界检查 end指向buf最后一个可用字节 保留一个给字符串结束符\0
+    char *end = buf + 4095;
+    // str是buf待写入的位置
+    char* str;
+    for (str = buf; *fmt && str < end; fmt++) {
+        // 遍历fmt
         if (*fmt != '%') {
+            // 普通字符直接丢到结果里面
             *str++ = *fmt;
             continue;
         }
-        flags = 0;
+        // 遇到了% 看看后面跟着的是什么格式化修饰符
+        int flags = 0;
     repeat:
-        // fmt指向了%符号 开始解析后面的格式化内容
+        // 跳到%后面的格式开始解析
         fmt++;
         switch (*fmt) {
             case '-': flags |= LEFT;
@@ -138,23 +138,30 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
             case '0': flags |= ZEROPAD;
                 goto repeat;
         }
-        field_width = -1;
+        // 解析字段宽度 %8d -1表示没有指定宽度
+        int field_width = -1;
         if (is_digit(*fmt)) {
+            // 显式用数字指定了宽度 %12d
             field_width = skip_atoi(&fmt);
         } else if (*fmt == '*') {
+            // 用变参列表里面的参数表示宽度 %*d, -5, 123 -5的负号要加到flags里面用LEFT表示
             fmt++;
             field_width = va_arg(args, int);
             if (field_width < 0) {
+                // 参数列表里面给的是负数 把负号的语义丢到flags里面
                 field_width = -field_width;
                 flags |= LEFT;
             }
         }
-        precision = -1;
+        // 精度 %.4d的精度是4 同样是两种方式 显式的数字和*号从参数列表里面取
+        int precision = -1;
         if (*fmt == '.') {
             fmt++;
             if (is_digit(*fmt)) {
+                // 显式用数字表示精度
                 precision = skip_atoi(&fmt);
             } else if (*fmt == '*') {
+                // 从参数列表里面取 %.*d,4,123
                 fmt++;
                 precision = va_arg(args, int);
             }
@@ -162,54 +169,82 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
                 precision = 0;
             }
         }
-        qualifier = -1;
+        // h l L Z长度修饰符 %ld
+        int qualifier = -1;
         if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'Z') {
             qualifier = *fmt;
             fmt++;
         }
         switch (*fmt) {
             case 'c': {
+                // 输出单个字符
                 if (!(flags & LEFT)) {
+                    // 不是左对齐 就先在左边填空格
                     while (--field_width > 0) {
                         *str++ = ' ';
                     }
                 }
+                // 输出字符本身
                 *str++ = (unsigned char) va_arg(args, int);
+                // 要是左对齐就会走到这开始在右边补空格 要是右对齐就会直接走到上面在左边补上了空格把field_width消耗完了 不会再走下面在右边填空格的逻辑
                 while (--field_width > 0) {
                     *str++ = ' ';
                 }
                 break;
             }
             case 's': {
-                s = va_arg(args, char *);
-                if (!s) { s = '\0'; }
-                len = strlen(s);
-                if (precision < 0) { precision = len; } else if (len > precision) { len = precision; }
+                // 输出字符串
+                // 从参数列表里面取出字符串
+                char* s = va_arg(args, char *);
+                if (!s) { s = (char *) "(null)"; }
+                int len = strlen(s);
+                if (precision < 0) {
+                    precision = len;
+                } else if (len > precision) {
+                    // 精度的作用是截断字符串 %.3s,"hello"的结果是hel
+                    len = precision;
+                }
                 if (!(flags & LEFT)) {
+                    // 右对齐 先在左边填空格
                     while (len < field_width--) { *str++ = ' '; }
                 }
-                for (i = 0; i < len; i++) { *str++ = *s++; }
+                // 字符串本身
+                for (int i = 0; i < len; i++) { *str++ = *s++; }
+                // 左对齐 就在右边填空格
                 while (len < field_width--) { *str++ = ' '; }
                 break;
             }
             case 'o': {
+                // 8进制
                 if (qualifier == 'l') {
+                    // %lo取unsigned long
                     str = number(str,va_arg(args, unsigned long), 8, field_width, precision, flags);
-                } else { str = number(str,va_arg(args, unsigned int), 8, field_width, precision, flags); }
+                } else {
+                    // 取unsigned int
+                    str = number(str,va_arg(args, unsigned int), 8, field_width, precision, flags);
+                }
                 break;
             }
             case 'p': {
+                // 指针
                 if (field_width == -1) {
                     field_width = 2 * sizeof(void *);
                     flags |= ZEROPAD;
                 }
+                // 指针用16进制输出
                 str = number(str, (unsigned long) va_arg(args, void *), 16, field_width, precision, flags);
                 break;
             }
             case 'x': {
+                // 16进制 小写abcdef
                 flags |= SMALL;
+                if (qualifier == 'l') {
+                    str = number(str,va_arg(args, unsigned long), 16, field_width, precision, flags);
+                } else { str = number(str,va_arg(args, unsigned int), 16, field_width, precision, flags); }
+                break;
             }
             case 'X': {
+                // 16进制 大写ABCDEF
                 if (qualifier == 'l') {
                     str = number(str,va_arg(args, unsigned long), 16, field_width, precision, flags);
                 } else { str = number(str,va_arg(args, unsigned int), 16, field_width, precision, flags); }
@@ -222,10 +257,14 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
             case 'u': {
                 if (qualifier == 'l') {
                     str = number(str,va_arg(args, unsigned long), 10, field_width, precision, flags);
-                } else { str = number(str,va_arg(args, unsigned int), 10, field_width, precision, flags); }
+                } else {
+                    // 上面d跟i没有break 会穿到这一起处理 都是unsigned int
+                    str = number(str,va_arg(args, unsigned int), 10, field_width, precision, flags);
+                }
                 break;
             }
             case 'n': {
+                // 写入已经输出字符数
                 if (qualifier == 'l') {
                     long *ip = va_arg(args, long*);
                     *ip = (str - buf);
@@ -236,17 +275,21 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
                 break;
             }
             case '%': {
+                // %% 字面百分号
                 *str++ = '%';
                 break;
             }
             default: {
+                // 没有识别出来的格式 输出%
                 *str++ = '%';
                 if (*fmt) { *str++ = *fmt; } else { fmt--; }
                 break;
             }
         }
     }
+    // 输出结果给一个字符串结束符
     *str = '\0';
+    // 输出结果的长度 不含结束\0
     return str - buf;
 }
 

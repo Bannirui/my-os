@@ -42,7 +42,8 @@ void Start_Kernel(void)
         // 绘制1个像素占4字节 写完1个像素后移4字节准备写下一个像素
         *addr++=BLUE;
     }
-    color_printk(YELLOW,BLACK,"HELLO WORLD\tThis is Dingrui, welcome to my Operating System.\nNumber is %d", 1);
+    color_printk(YELLOW,BLACK,"HELLO WORLD\tThis is Dingrui, welcome to my Operating System.\nNumber is %d\n", 1);
+    color_printk(YELLOW, BLACK, "hex: %x\n", 16);
 
     while(1);
 }
