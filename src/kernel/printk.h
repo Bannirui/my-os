@@ -1,8 +1,6 @@
 #pragma once
 
-#include <stdarg.h> // 是GUN C编译环境自带的头文件 因为有些函数需要可变函数 所以需要这个头文件的支持
-#include "font.h"
-#include "linkage.h"
+#include <stdarg.h> // 是GUN C编译环境自带的头文件 因为有些函数需要可变参数 所以需要这个头文件的支持
 
 #define ZEROPAD 1 /* pad with zero */
 #define SIGN 2 /* unsigned/signed long */
@@ -31,9 +29,9 @@ struct Position {
     int XResolution; // 横向
     int YResolution; // 纵向
 
-    // 字符光标所在位置
-    int XPosition;
-    int YPosition;
+    // 字符光标所在位置 是字符位置 屏幕左上角是(0,0) 横向是x 纵向是y 往右下角增长
+    int XPosition; // 列
+    int YPosition; // 行
 
     // 字符像素矩阵尺寸 几个像素
     int XCharSize; // 宽度
@@ -49,13 +47,13 @@ struct Position {
 extern struct Position Pos;
 
 /**
- * 通过帧缓冲区显示字符
- * @param fb 帧缓冲区的地址
- * @param Xsize 横向总共是多少像素
- * @param x 字符串要显示在哪儿 横向像素
- * @param y 字符串要显示在哪儿 纵向像素
- * @param FRcolor 前景色
- * @param BKcolor 后景色
+ * 通过帧缓冲区打印在屏幕上
+ * @param fb 帧缓冲区的线性地址
+ * @param Xsize 行分辨率
+ * @param x 字符串要显示在哪儿 横向像素占位置
+ * @param y 字符串要显示在哪儿 纵向像素点位置
+ * @param FRcolor 字体颜色
+ * @param BKcolor 字体背景色
  * @param font 要显示的字符
 */
 void putchar(unsigned int *fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font);
@@ -83,5 +81,6 @@ int vsprintf(char *buf, const char *fmt, va_list args);
  * @param FRcolor 前景色
  * @param BKcolor BKcolor 背景色
  * @param fmt 格式化字符串
+ * @return 字符串长度
  */
 int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ...);
