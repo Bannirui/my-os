@@ -4,7 +4,7 @@
 char buf[4096]={0};
 
 // 在这里真正定义Pos
-struct position Pos;
+struct Position Pos;
 
 void putchar(unsigned int* fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font)
 {

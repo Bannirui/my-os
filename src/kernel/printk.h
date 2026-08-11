@@ -25,21 +25,28 @@
 #define INDIGO 0x0000ffff //靛
 #define PURPLE 0x008000ff //紫
 
-struct position
-{
-	int XResolution; // 横向分辨率
-	int YResolution; // 纵向分辨率
+// 屏幕信息
+struct Position {
+    // 屏幕分辨率
+    int XResolution; // 横向
+    int YResolution; // 纵向
 
-	int XPosition; // 当前光标位置
-	int YPosition; // 当前光标位置
+    // 字符光标所在位置
+    int XPosition;
+    int YPosition;
 
-	int XCharSize; // 字符宽度 像素
-	int YCharSize; // 字符高度 像素
+    // 字符像素矩阵尺寸 几个像素
+    int XCharSize; // 宽度
+    int YCharSize; // 高度
 
-	unsigned int* FB_addr; // 帧缓冲区的起始虚拟地址
-	unsigned long FB_length; // 帧缓冲区总长度 字节数 32位像素是1像素占4字节 这个值就是XResolution*YResolution*4
+    // 帧缓冲区的起始虚拟地址
+    unsigned int *FB_addr;
+    // 帧缓冲区容量大小 字节数 32位像素是1像素占4字节 这个值就是XResolution*YResolution*4
+    unsigned long FB_length;
 };
-extern struct position Pos; // 这里只是声明 不分配存储
+
+// 这里只是声明 不分配存储 多个文件都要用到这个全局变量
+extern struct Position Pos;
 
 /**
  * 通过帧缓冲区显示字符
@@ -51,7 +58,8 @@ extern struct position Pos; // 这里只是声明 不分配存储
  * @param BKcolor 后景色
  * @param font 要显示的字符
 */
-void putchar(unsigned int* fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font);
+void putchar(unsigned int *fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font);
+
 int skip_atoi(const char **s);
 
 #define do_div(n,base) ({ \
@@ -59,7 +67,7 @@ int skip_atoi(const char **s);
     __asm__("divq %%rcx":"=a" (n),"=d" (__res):"0" (n),"1" (0),"c" (base)); \
     __res; })
 
-static char* number(char* str, long num, int base, int size, int precision ,int type);
+static char *number(char *str, long num, int base, int size, int precision, int type);
 
 /**
  * 处理格式化字符串可变参数的参数列表 把格式化字符串替换成实际的字符串
@@ -68,7 +76,7 @@ static char* number(char* str, long num, int base, int size, int precision ,int 
  * @param args 可变参数的参数列表
  * @return buf中处理好的字符串长度
  */
-int vsprintf(char* buf,const char* fmt, va_list args);
+int vsprintf(char *buf, const char *fmt, va_list args);
 
 /**
  * 打印字符串
@@ -76,4 +84,4 @@ int vsprintf(char* buf,const char* fmt, va_list args);
  * @param BKcolor BKcolor 背景色
  * @param fmt 格式化字符串
  */
-int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char* fmt,...);
+int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ...);
