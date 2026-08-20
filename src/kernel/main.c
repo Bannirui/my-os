@@ -7,9 +7,10 @@
 #define WIDTH 1440
 #define HEIGHT 900
 
+#define QEMU_VGA_ADDR 0xffff800000a00000; // qemu显存的虚拟地址
+
 // 没有返回地址 一旦进入就死循环
-void Start_Kernel(void)
-{
+void Start_Kernel(void) {
     // 关于虚拟地址映射的物理地址
     // 1 0xffff_8000_00a0_0000这个虚拟地址的有效地址位是低48位0x8000_00a0_0000
     // 1111 1111 1111 1111 (1000 0000 0)(000 0000 00)(00 0000 101)(0 0000 0000) (0000 0000 0000)
@@ -24,26 +25,29 @@ void Start_Kernel(void)
     // 5 抹掉0x10_2007的低12位 找到2层页表地址0x10_2000 偏移0的地址 还是0x10_2000 这个页表项里面存放着0x10_3003
     // 6 0x10_3003抹掉它的低12位后物理地址是0x10_3000 找到这个物理地址是3层页表项 3层页表的偏移是5拿到的3层页表表项里面存着0xfd00_0083
     // 7 0xfd00_0083的低12位0x83标志位PS=1 表示3层页表用的大页2MB 没有4层页表的事情了 这个表项表达的物理地址区间是[0xfd00_0000...0xfd1f_ffff]
-    // 8 页内偏移是0 所以最终的物理地址是0xfd00_0000 这个物理地址就是qemu的陷
-    int* addr = (int*)0xffff800000a00000; // 显存的虚拟地址
-    int i;
+    // 8 页内偏移是0 所以最终的物理地址是0xfd00_0000 这个物理地址就是qemu的显存地址
+
+    // 整个屏幕绘制成颜色
+    int *addr = (int *) QEMU_VGA_ADDR;
+    for (int i = 0; i < WIDTH * HEIGHT; i++) {
+        // 绘制1个像素占4字节 写完1个像素后移4字节准备写下一个像素
+        *addr++ = BLUE;
+    }
+
+    // 打印字符串
     Pos.XResolution = WIDTH;
     Pos.YResolution = HEIGHT;
     Pos.XPosition = 0;
     Pos.YPosition = 0;
     Pos.XCharSize = 8;
     Pos.YCharSize = 16;
-
-    Pos.FB_addr = (int*)0xffff800000a00000; // 帧缓冲区地址
+    Pos.FB_addr = (int *) QEMU_VGA_ADDR; // 帧缓冲区地址
     Pos.FB_length = (Pos.XResolution * Pos.YResolution * 4); // 缓冲区多少字节 32位像素 1像素占4字节
-
-    // 红色 R=0xff B=0x00 G=0x00 A=0x00 绘制一个色块 长WIDTH 高20像素
-    for(i=0 ;i<WIDTH*HEIGHT; i++) {
-        // 绘制1个像素占4字节 写完1个像素后移4字节准备写下一个像素
-        *addr++=BLUE;
-    }
-    color_printk(YELLOW,BLACK,"HELLO WORLD\tThis is Dingrui, welcome to my Operating System.\nNumber is %d\n", 1);
+    color_printk(YELLOW,BLACK, "HELLO WORLD\tThis is Dingrui, welcome to my Operating System.\nNumber is %d\n", 1);
     color_printk(YELLOW, BLACK, "hex: %x\n", 16);
 
-    while(1);
+    // 异常的效果
+    int n = 1 / 0;
+
+    while (1);
 }
