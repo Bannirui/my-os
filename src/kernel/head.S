@@ -53,7 +53,7 @@ entry64:
 
 // 内核启动初期非常脆弱 不具备异常处理能力 IDT的初始化模块将ignore_int模块作为所有异常的处理程序
 // 把IDT表的256个表项全部填成指向ignore_int的中断门描述符
-// 拼一个64位的中断门描述符 64位中端门描述符共16字节 分低8字节 高8字节两部分 rax拼低8字节 rdx拼高8字节
+// 拼一个64位的中断门描述符 64位中断门描述符共16字节 分低8字节 高8字节两部分 rax拼低8字节 rdx拼高8字节
 // 字节     位              含义
 // 低8字节 0-15  偏移量offset[15:0]
 // 低8字节 16-31 段选择子
@@ -94,6 +94,44 @@ rp_sidt:
     dec rcx
     // 计数没有减到0就继续 总共写满IDT表的256个表项
     jne rp_sidt
+
+// 初始化GDT表的TSS描述符
+setup_TSS64:
+    // rdx=TSS的64位基址
+    lea rdx, [rip + TSS64_Table]
+    xor rax, rax
+    xor rcx, rcx
+    // rax[47:40] P=1 DPL=00 S=0 Type=1001 组合起来16进制就是0x89 左移40位就是放到了47到40位
+    mov rax, 0x89
+    shl rax, 40
+    // rax[63:56]设置成Base[31:24]
+    mov ecx, edx // 取出base低32位
+    shr ecx, 24 // 右移24位 就是取出base[31:24]
+    shl rcx, 56 // 把base[31:24]搬到rax[63:56]
+    add rax, rcx
+    // rax[39:16]设置成Base[23:0]
+    xor rcx, rcx
+    mov ecx, edx
+    and ecx, 0xffffff // 取出Base[23:0]
+    shl rcx, 16 // 搬到[39:16]
+    add rax, rcx
+    // rax[15:0]设置成limit
+    add rax, 103 // TSS表用13个8字节的0定义了 总共就是104个字节 段界限=104-1=103 也可以用16进制0x67表示
+    // 写入GDT GDT表项是8字节一个 TSS描述符是16字节 写到
+    lea rdi, [rip + GDT_Table]
+    mov [rdi + 64], rax // TSS的低8字节写到GDT表项8
+    shr rdx, 32 // TSS的低8字节放到GDT表项9
+    mov [rdi + 72], rdx
+
+    // GDT表怎么索引呢 用段选择子 段选择子的编码规则是 16位的含义
+    //   位     含义
+    // [14:3] 索引Index 指向GDT描述符表中的第几个表项
+    // [2]    TI表示指示位 0表示GDT 1表示LDT
+    // [1:0]  RPL 请求特权级
+    // 所以拿到段选择子右移3位就是所以Index
+    // 编码一个段选择子 二进制是 0000 0000 0100 0000
+    mov ax, 0x0040 // 段选择子的16进制
+    ltr ax // TSS的段选择子装载到TR寄存器
 
     mov rax, [rip + go_to_kernel]
     push 0x08           // 物理代码段选择子
@@ -271,6 +309,12 @@ GDT_Table:
     .quad 0x00cf92000000ffff // 32位数据段 G=1 D/B=1 L=0 AVL=0 P=1 DPL=11 S=1 E=0 DC=0 RW=1 A=0 32位兼容模式 在32位模式下还是需要段基址和段界限的
     .fill 10,8,0
 GDT_END:
+// GDT表怎么索引呢 用段选择子 段选择子的编码规则是 16位的含义
+//   位     含义
+// [14:3] 索引Index 指向GDT描述符表中的第几个表项
+// [2]    TI表示指示位 0表示GDT 1表示LDT
+// [1:0]  RPL 请求特权级
+// 所以拿到段选择子右移3位就是所以Index
 
 // 跟32位下的GDT表结构一样 区别在表地址 32位下地址4字节 64位下地址8字节
 // 要告诉gdtr 10字节 2字节是表长(GDT表字节数-1)和8字节的GDT表地址
@@ -279,7 +323,16 @@ GDT_LIMIT: .word GDT_END - GDT_Table - 1 // 2字节
 GDT_BASE: .quad GDT_Table // 4字节
 
 .globl IDT_Table
-// IDT表 表有256项 每个项占16字节
+// IDT表 表有256项 每个项占16字节 每个项是中断描述符
+// 一个64位的中断门描述符 64位中断门描述符共16字节 分低8字节 高8字节两部分
+// 字节     位              含义
+// 低8字节 0-15  偏移量offset[15:0]
+// 低8字节 16-31 段选择子
+// 低8字节 32-39 IST+保留(设置成0)
+// 低8字节 40-47 属性0x8e含义是 P=1 DPL=0 Type=0xe
+// 低8字节 48-63 偏移量offset[31:16]
+// 高8字节 64-95 偏移量offset[63:32]
+// 高8字节 96-127 保留(设置成0)
 IDT_Table:
     .fill  512,8,0
 IDT_END:
@@ -288,6 +341,19 @@ IDT_POINTER:
 IDT_LIMIT: .word IDT_END - IDT_Table - 1
 IDT_BASE: .quad IDT_Table
 
+// 在GDT表里面构造一个64位的TSS任务状态段描述符 用ltr加载到任务寄存器TR
+// TSS在64位模式下主要用于特权级切换时的栈RSP0和IST中段栈指针
+// TSS64系统描述符格式
+//    位       字段
+// [95:64] Base[63:32]
+// [63:56] Base[31:24]
+// [47]    P 表示存在位
+// [46:45] DPL
+// [44]    S=0 表示系统段
+// [43:40] Type=0x9 表示64位可用TSS
+// [39:32] Base[23:16]
+// [31:16] Base[15:0]
+// [15:0] Limit[15:0]
 .globl TSS64_Table
 TSS64_Table:
     .fill  13,8,0
