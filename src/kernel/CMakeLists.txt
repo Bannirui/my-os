@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 set(KERNEL_BUILD_DIR ${CMAKE_BINARY_DIR}/kernel)
 
-# head.S → 预处理 → head.s → 汇编 → head.o
+# head.S->预处理->head.s->汇编->head.o
 add_custom_command(
         OUTPUT ${KERNEL_BUILD_DIR}/head.s
         COMMAND ${CMAKE_COMMAND} -E make_directory ${KERNEL_BUILD_DIR}
@@ -24,11 +24,39 @@ add_custom_command(
         COMMENT "Assembling head.S"
 )
 
-# C代码 → 编译为目标文件
+# entry.S->预处理->entry.s->汇编->entry.o
+add_custom_command(
+        OUTPUT ${KERNEL_BUILD_DIR}/entry.s
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${KERNEL_BUILD_DIR}
+        COMMAND gcc -E
+                -I ${CMAKE_CURRENT_SOURCE_DIR}
+                ${CMAKE_CURRENT_SOURCE_DIR}/entry.S
+                -o ${KERNEL_BUILD_DIR}/entry.s
+        DEPENDS
+                ${CMAKE_CURRENT_SOURCE_DIR}/entry.S
+                ${CMAKE_CURRENT_SOURCE_DIR}/linkage.h
+        COMMENT "Preprocessing entry.S"
+)
+
+add_custom_command(
+        OUTPUT ${KERNEL_BUILD_DIR}/entry.o
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${KERNEL_BUILD_DIR}
+        COMMAND as --64
+                ${KERNEL_BUILD_DIR}/entry.s
+                -o ${KERNEL_BUILD_DIR}/entry.o
+        DEPENDS ${KERNEL_BUILD_DIR}/entry.s
+        COMMENT "Assembling entry.S"
+)
+
+# C代码->编译为目标文件
+file(GLOB_RECURSE KERNEL_C_SOURCES CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.c)
+file(GLOB_RECURSE KERNEL_C_HEADERS CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+
 add_library(kernel_c OBJECT
-        main.c
-        printk.c
-        font.c
+        ${KERNEL_C_SOURCES}
+        ${KERNEL_C_HEADERS}
 )
 target_compile_options(kernel_c PRIVATE
         -mcmodel=large -m64
@@ -46,9 +74,11 @@ add_custom_command(
                 -T ${CMAKE_CURRENT_SOURCE_DIR}/kernel.lds
                 -o ${KERNEL_BUILD_DIR}/kernel.elf
                 ${KERNEL_BUILD_DIR}/head.o
+                ${KERNEL_BUILD_DIR}/entry.o
                 $<TARGET_OBJECTS:kernel_c>
         DEPENDS
                 ${KERNEL_BUILD_DIR}/head.o
+                ${KERNEL_BUILD_DIR}/entry.o
                 kernel_c
                 ${CMAKE_CURRENT_SOURCE_DIR}/kernel.lds
         COMMAND_EXPAND_LISTS

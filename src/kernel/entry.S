@@ -1,0 +1,265 @@
+#include "linkage.h"
+
+.intel_syntax noprefix
+
+// 异常的处理过程会涉及到执行现场的保存工作 由于C语言没办法实现寄存器的压栈操作 就先借助汇编在异常处理成语的入口处保存程序的现场环境 然后再执行C语言的异常处理函数
+
+R15	=	0x00
+R14	=	0x08
+R13	=	0x10
+R12	=	0x18
+R11	=	0x20
+R10	=	0x28
+R9	=	0x30
+R8	=	0x38
+RBX	=	0x40
+RCX	=	0x48
+RDX	=	0x50
+RSI	=	0x58
+RDI	=	0x60
+RBP	=	0x68
+DS	=	0x70
+ES	=	0x78
+RAX	=	0x80
+FUNC	=	0x88
+ERRCODE	=	0x90
+RIP	=	0x98
+CS	=	0xa0
+RFLAGS	=	0xa8
+OLDRSP	=	0xb0
+OLDSS	=	0xb8
+
+RESTORE_ALL:
+	pop	r15;
+	pop	r14;
+	pop	r13;
+	pop	r12;
+	pop	r11;
+	pop	r10;
+	pop	r9;
+	pop	r8;
+	pop	rbx;
+	pop	rcx;
+	pop	rdx;
+	pop	rsi;
+	pop	rdi;
+	pop	rbp;
+	pop	rax;
+	mov	ds,	rax;
+	pop	rax;
+	mov	es,	rax;
+	pop	rax;
+	add	rsp,	0x10;
+	iretq;
+
+#define GET_CURRENT(reg)	\
+	mov	reg,	-32768;	\
+	and	reg,	rsp
+
+ret_from_exception:
+	/*GET_CURRENT(%ebx)	need rewrite*/
+ENTRY(ret_from_intr)
+	jmp	RESTORE_ALL	/*need rewrite*/
+
+
+ENTRY(divide_error)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_divide_error]
+	xchg	[rsp],	rax
+
+error_code:
+	push	rax
+	mov	rax,	es
+	push	rax
+	mov	rax,	ds
+	push	rax
+	xor	rax,	rax
+
+	push	rbp
+	push	rdi
+	push	rsi
+	push	rdx
+	push	rcx
+	push	rbx
+	push	r8
+	push	r9
+	push	r10
+	push	r11
+	push	r12
+	push	r13
+	push	r14
+	push	r15
+
+	cld
+	mov	rsi,	[rsp + ERRCODE]
+	mov	rdx,	[rsp + FUNC]
+
+	mov	rdi,	0x10
+	mov	ds,	rdi
+	mov	es,	rdi
+
+	mov	rdi,	rsp
+	////GET_CURRENT(%ebx)
+
+	call	rdx
+
+	jmp	ret_from_exception
+
+ENTRY(debug)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_debug]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(nmi)
+	push	rax
+	cld;
+	push	rax;
+
+	push	rax
+	mov	rax,	es
+	push	rax
+	mov	rax,	ds
+	push	rax
+	xor	rax,	rax
+
+	push	rbp;
+	push	rdi;
+	push	rsi;
+	push	rdx;
+	push	rcx;
+	push	rbx;
+	push	r8;
+	push	r9;
+	push	r10;
+	push	r11;
+	push	r12;
+	push	r13;
+	push	r14;
+	push	r15;
+
+	mov	rdx,	0x10;
+	mov	ds,	rdx;
+	mov	es,	rdx;
+
+	mov	rsi,	0
+	mov	rdi,	rsp
+
+	call	do_nmi
+
+	jmp	RESTORE_ALL
+
+ENTRY(int3)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_int3]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(overflow)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_overflow]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(bounds)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_bounds]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(undefined_opcode)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_undefined_opcode]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(dev_not_available)	/* need rewrite */
+	push	0
+	push	rax
+	lea	rax,	[rip + do_dev_not_available]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+
+ENTRY(double_fault)
+	push	rax
+	lea	rax,	[rip + do_double_fault]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(coprocessor_segment_overrun)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_coprocessor_segment_overrun]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(invalid_TSS)
+	push	rax
+	lea	rax,	[rip + do_invalid_TSS]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(segment_not_present)
+	push	rax
+	lea	rax,	[rip + do_segment_not_present]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(stack_segment_fault)
+	push	rax
+	lea	rax,	[rip + do_stack_segment_fault]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(general_protection)
+	push	rax
+	lea	rax,	[rip + do_general_protection]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(page_fault)
+	push	rax
+	lea	rax,	[rip + do_page_fault]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(x87_FPU_error)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_x87_FPU_error]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(alignment_check)
+	push	rax
+	lea	rax,	[rip + do_alignment_check]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(machine_check)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_machine_check]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(SIMD_exception)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_SIMD_exception]
+	xchg	[rsp],	rax
+	jmp	error_code
+
+ENTRY(virtualization_exception)
+	push	0
+	push	rax
+	lea	rax,	[rip + do_virtualization_exception]
+	xchg	[rsp],	rax
+	jmp	error_code

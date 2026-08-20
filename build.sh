@@ -11,6 +11,9 @@ command -v mformat >/dev/null 2>&1 || { echo "ERROR: mformat not found. Install:
 IMAGE_PATH="${PWD}/build/os.img"
 
 # build
+echo "Cleaning old build..."
+rm -rf "${PWD}/build"
+
 echo "Configuring build..."
 mkdir -p "${PWD}/build"
 cmake -B "${PWD}/build" -S .

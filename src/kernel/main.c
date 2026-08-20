@@ -3,6 +3,8 @@
 // 进行各个系统模块的初始化 完成后创建出系统的第一个进程init进程 然后将控制权给init进程
 
 #include "printk.h"
+#include "gate.h"
+#include "trap.h"
 
 #define WIDTH 1440
 #define HEIGHT 900
@@ -46,6 +48,11 @@ void Start_Kernel(void) {
     color_printk(YELLOW,BLACK, "HELLO WORLD\tThis is Dingrui, welcome to my Operating System.\nNumber is %d\n", 1);
     color_printk(YELLOW, BLACK, "hex: %x\n", 16);
 
+    // 编码一个TSS段选择子给TR寄存器 指向GDT表的第8项
+    load_TR(8);
+    // 配置TSS段内的各个RSP和IST项
+	set_tss64(0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00);
+	sys_vector_init();
     // 异常的效果
     int n = 1 / 0;
 
