@@ -6,6 +6,7 @@
 #include "gate.h"
 #include "trap.h"
 #include "memory.h"
+#include "interrupt.h"
 
 #define WIDTH 1440
 #define HEIGHT 900
@@ -52,20 +53,26 @@ void init_print() {
 void Start_Kernel(void) {
     // 字符串打印
     init_print();
+
     // 编码一个TSS段选择子给TR寄存器 指向GDT表的第8项
     load_TR(8);
     // 配置TSS段内的各个RSP和IST项
     set_tss64(0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00,
               0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00);
+
     // 初始化IDT
     sys_vector_init();
     color_printk(RED,BLACK, "memory init \n");
+
     // 物理内存布局
     memory_management_struct.start_code = (unsigned long) &_text;
     memory_management_struct.end_code = (unsigned long) &_etext;
     memory_management_struct.end_data = (unsigned long) &_edata;
     memory_management_struct.end_brk = (unsigned long) &_end;
     init_memory();
+
+    color_printk(RED,BLACK,"interrupt init \n");
+	init_interrupt();
 
     while (1);
 }
