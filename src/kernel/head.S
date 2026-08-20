@@ -3,6 +3,7 @@
 // 内核头程序就是内核程序中的一小段汇编代码
 // 在链接的时候把0xffff800000000000+0x100000设计成了内核程序的线性地址
 
+// intel代码风格
 .intel_syntax noprefix
 .section .text
 
@@ -50,6 +51,50 @@ entry64:
     mov ss, rax
     mov rsp, 0xffff800000007e00  // 上面临时设置了栈在7e00 在平坦模型下低地址空间将来都是划分给用户程序的 现在正式把内核的栈设置成对应的逻辑地址 内核空间的划分是在64位高半区 内核的物理起始地址是0x100000 映射的逻辑地址是0xffff800000000000 所以现在栈的物理地址是0x7e00映射的逻辑地址就是0xffff800000007e00
 
+// 内核启动初期非常脆弱 不具备异常处理能力 IDT的初始化模块将ignore_int模块作为所有异常的处理程序
+// 把IDT表的256个表项全部填成指向ignore_int的中断门描述符
+// 拼一个64位的中断门描述符 64位中端门描述符共16字节 分低8字节 高8字节两部分 rax拼低8字节 rdx拼高8字节
+// 字节     位              含义
+// 低8字节 0-15  偏移量offset[15:0]
+// 低8字节 16-31 段选择子
+// 低8字节 32-39 IST+保留(设置成0)
+// 低8字节 40-47 属性0x8e含义是 P=1 DPL=0 Type=0xe
+// 低8字节 48-63 偏移量offset[31:16]
+// 高8字节 64-95 偏移量offset[63:32]
+// 高8字节 96-127 保留(设置成0)
+setup_IDT:
+    // ignore_int符号的运行时地址计算出来 RIP相对寻址 LEA(load effective address)取有效地址 算出来ignore_int的运行时地址作为完整的64位offset存到rdx
+    lea rdx, [rip + ignore_int]
+    // rax存放低8字节 [31:16]放段选择子
+    mov rax, 0x08 << 16
+    // 低8字节[15:0]放偏移量的[15:0]
+    mov ax, dx
+    // 低8字节[47:40]
+    mov rcx, 0x8E << 40
+    add rax, rcx
+    // 低8字节的[63:48]放偏移量的[31:16]
+    mov ecx, edx // 取偏移量的低32位
+    shr ecx, 16 // 偏移量的低32位右移16位就得到了偏移量的[31:16]
+    shl rcx, 48 // 再左移48位 把偏移量的[31:16]放到了8字节的[63:48]
+    add rax, rcx
+    // rdx放的是高8字节 高8字节的高32位放的是0 高8字节的低32位放的是偏移量offset[63:32]
+    shr rdx, 32
+    // rdi指向IDT表的起始地址作为写入目标
+    lea rdi, [rip + IDT_Table]
+    // IDT表有256个表项 每个表项16字节 循环写256个表项
+    mov rcx, 256
+rp_sidt:
+    // 写入中断门描述符的低8字节
+    mov [rdi], rax
+    // 写入中断门描述符的高8字节
+    mov [rdi + 8], rdx
+    // 指针前进16个字节 指向下一个IDT表的表项
+    add rdi, 0x10
+    // 计数减1
+    dec rcx
+    // 计数没有减到0就继续 总共写满IDT表的256个表项
+    jne rp_sidt
+
     mov rax, [rip + go_to_kernel]
     push 0x08           // 物理代码段选择子
     push rax            // go_to_kernel标号地址
@@ -57,6 +102,83 @@ entry64:
 
 go_to_kernel:
     .quad Start_Kernel  // 内核头程序跳到内核主程序Start_Kernel函数中
+
+// 负责异常处理的函数 打印个信息 然后死循环挂着
+ignore_int:
+    // 保存现场 先保存各个寄存器的值 准备切换到内核数据段
+    cld // 为了保证字符串指令的方向正确
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rbp
+    push rdi
+    push rsi
+
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+    // 段寄存器不能直接压栈 先挪到rax再压
+    mov rax, es
+    push rax
+    mov rax, ds
+    push rax
+    // 切换数据段 把DS和ES段寄存器设置成内核数据段 因为中断可能发生在用户态(ds es是用户数据段) 这里要访问内核的字符串和调用内核函数 必须要用内核段
+    mov rax, 0x10
+    mov ds, rax
+    mov es, rax
+    // 要打印的字符串的地址
+    lea rax, [rip + int_msg]
+    // 压栈 下面会平衡掉
+    push rax
+    // rdx=fmt
+    mov rdx, rax
+    // rsi=背景色 黑色
+    mov rsi, 0x00000000
+    // rdi=前景色 红色
+    mov rdi, 0x00ff0000
+    // al=0 可变参数用了0个向量寄存器
+    mov rax, 0
+    // 调用内核函数
+    call color_printk
+    // 平衡栈 把上面push的地址弹掉
+    add rsp, 0x8
+
+Loop:
+    // 异常处理函数挂着
+    jmp Loop
+
+    // 因为上面的jmp Loop导致下面的代码暂时跑不进来 跟保护现场是对称的弹栈恢复+iretq返回
+    pop rax
+    mov ds, rax
+    pop rax
+    mov es, rax
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+
+    pop rsi
+    pop rdi
+    pop rbp
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    iretq
+
+int_msg:
+    .asciz "Unknown interrupt or fault at RIP\n"
 
 // 为操作系统创建和初始化页表及页表项
 .align 8 // 在64位IA-32e长模式下 页表被分为4个等级 每个页表项是8字节 所以用align将对齐标准设置为8字节
@@ -157,6 +279,7 @@ GDT_LIMIT: .word GDT_END - GDT_Table - 1 // 2字节
 GDT_BASE: .quad GDT_Table // 4字节
 
 .globl IDT_Table
+// IDT表 表有256项 每个项占16字节
 IDT_Table:
     .fill  512,8,0
 IDT_END:
