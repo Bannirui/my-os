@@ -5,14 +5,22 @@
 #include "printk.h"
 #include "gate.h"
 #include "trap.h"
+#include "memory.h"
 
 #define WIDTH 1440
 #define HEIGHT 900
 
 #define QEMU_VGA_ADDR 0xffff800000a00000; // qemu显存的虚拟地址
 
-// 没有返回地址 一旦进入就死循环
-void Start_Kernel(void) {
+// 这几个变量声明后会被放在kernel.lds的链接脚本中的指定地址处
+extern char _text;
+extern char _etext;
+extern char _edata;
+extern char _end;
+
+struct Global_Memory_Descriptor memory_management_struct = {{0}, 0};
+
+void init_print() {
     // 关于虚拟地址映射的物理地址
     // 1 0xffff_8000_00a0_0000这个虚拟地址的有效地址位是低48位0x8000_00a0_0000
     // 1111 1111 1111 1111 (1000 0000 0)(000 0000 00)(00 0000 101)(0 0000 0000) (0000 0000 0000)
@@ -29,13 +37,6 @@ void Start_Kernel(void) {
     // 7 0xfd00_0083的低12位0x83标志位PS=1 表示3层页表用的大页2MB 没有4层页表的事情了 这个表项表达的物理地址区间是[0xfd00_0000...0xfd1f_ffff]
     // 8 页内偏移是0 所以最终的物理地址是0xfd00_0000 这个物理地址就是qemu的显存地址
 
-    // 整个屏幕绘制成颜色
-    int *addr = (int *) QEMU_VGA_ADDR;
-    for (int i = 0; i < WIDTH * HEIGHT; i++) {
-        // 绘制1个像素占4字节 写完1个像素后移4字节准备写下一个像素
-        *addr++ = BLUE;
-    }
-
     // 打印字符串
     Pos.XResolution = WIDTH;
     Pos.YResolution = HEIGHT;
@@ -45,16 +46,26 @@ void Start_Kernel(void) {
     Pos.YCharSize = 16;
     Pos.FB_addr = (int *) QEMU_VGA_ADDR; // 帧缓冲区地址
     Pos.FB_length = (Pos.XResolution * Pos.YResolution * 4); // 缓冲区多少字节 32位像素 1像素占4字节
-    color_printk(YELLOW,BLACK, "HELLO WORLD\tThis is Dingrui, welcome to my Operating System.\nNumber is %d\n", 1);
-    color_printk(YELLOW, BLACK, "hex: %x\n", 16);
+}
 
+// 没有返回地址 一旦进入就死循环
+void Start_Kernel(void) {
+    // 字符串打印
+    init_print();
     // 编码一个TSS段选择子给TR寄存器 指向GDT表的第8项
     load_TR(8);
     // 配置TSS段内的各个RSP和IST项
-	set_tss64(0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00);
-	sys_vector_init();
-    // 异常的效果
-    int n = 1 / 0;
+    set_tss64(0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00,
+              0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00);
+    // 初始化IDT
+    sys_vector_init();
+    color_printk(RED,BLACK, "memory init \n");
+    // 物理内存布局
+    memory_management_struct.start_code = (unsigned long) &_text;
+    memory_management_struct.end_code = (unsigned long) &_etext;
+    memory_management_struct.end_data = (unsigned long) &_edata;
+    memory_management_struct.end_brk = (unsigned long) &_end;
+    init_memory();
 
     while (1);
 }
