@@ -8,15 +8,18 @@
 #include "cpu.h"
 #include "ptrace.h"
 
-#define KERNEL_CS 	(0x08)
-#define	KERNEL_DS 	(0x10)
+// 段选择子 去索引GDT index=selector>>3
+// GDT表的索引号1
+#define KERNEL_CS 	 (0x08)
+// GDT表的索引号2
+#define	KERNEL_DS 	 (0x10)
 
-#define	USER_CS		(0x20)
-#define USER_DS		(0x18)
+#define	USER_CS		 (0x20)
+#define USER_DS		 (0x18)
 
-#define CLONE_FS	(1 << 0)
-#define CLONE_FILES	(1 << 1)
-#define CLONE_SIGNAL	(1 << 2)
+#define CLONE_FS	 (1 << 0)
+#define CLONE_FILES	 (1 << 1)
+#define CLONE_SIGNAL (1 << 2)
 
 // stack size 32K
 #define STACK_SIZE 32768
