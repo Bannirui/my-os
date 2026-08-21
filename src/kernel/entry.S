@@ -61,7 +61,11 @@ ret_from_exception:
 ENTRY(ret_from_intr)
 	jmp	RESTORE_ALL
 
+// 系统调用API的接口
+// 当应用程序执行sysenter指令进入内核层时 会通过system_call模块保存应用程序的执行现场 随后使用call指令调用system_call_function函数 进而执行与之匹配的处理程序
+// 调用system_call_function函数时 system_call模块会将当前栈指针作为参数传递给system_call_function函数 此时的栈指针正指向pt_regs结构体的首地址
 ENTRY(system_call)
+    // 把sti指令插入到system_call的入口处 当sysenter指令执行完毕后立即能中断 以允许处理器再次接收中断请求信号
 	sti
 	sub	rsp,	0x38
 	cld;

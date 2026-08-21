@@ -56,6 +56,17 @@ struct task_struct *init_task[NR_CPUS] = {&init_task_union.task, 0};
 
 struct tss_struct init_tss[NR_CPUS] = {[0 ... NR_CPUS - 1] = INIT_TSS};
 
+/**
+ * sysenter/sysexit指令并不具备保存程序执行环境的功能
+ * sysexit指令的执行必须要向RCX与RDX寄存器提供应用程序的返回地址和栈顶地址
+ * 在执行sysenter指令前 将应用程序的返回地址和栈顶地址保存在这两个寄存器内
+ *
+ * 这个函数是系统调用在应用层的核心
+ * 通过汇编lea取得标识符sysexit_return_address的有效地址 并将有效地址保存到RDX寄存器
+ * RCX寄存器保存着应用层的当前指针
+ * RAX寄存器是系统调用API的向量号
+ * 当系统调用处理函数执行结束 系统调用处理函数便借助RAX寄存器把执行结果返回到应用层并保存在变量ret中
+ */
 void user_level_function() {
     long ret = 0;
     char string[] = "Hello World!\n";
@@ -186,7 +197,6 @@ __asm__ (
     "	callq	do_exit		\n\t"
 );
 
-
 int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigned long flags) {
     struct pt_regs regs;
     memset(&regs, 0, sizeof(regs));
@@ -203,7 +213,6 @@ int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigne
 
     return do_fork(&regs, flags, 0, 0);
 }
-
 
 void __switch_to(struct task_struct *prev, struct task_struct *next) {
     init_tss[0].rsp0 = next->thread->rsp0;
