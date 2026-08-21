@@ -36,7 +36,6 @@ unsigned long page_init(struct Page *page, unsigned long flags) {
     return 0;
 }
 
-
 unsigned long page_clean(struct Page *page) {
     if (!page->attribute) {
         page->attribute = 0;
@@ -76,7 +75,6 @@ void init_memory() {
     // 显示物理内存空间分布信息
     for (int i = 0; i < 32; i++) {
         color_printk(ORANGE,BLACK, "Address:%#018lx\tLength:%#018lx\tType:%#010x\n", p->address, p->length, p->type);
-        unsigned long tmp = 0;
         if (p->type == 1) {
             TotalMem += p->length;
         }
@@ -104,6 +102,7 @@ void init_memory() {
         TotalMem += (end - start) >> PAGE_2M_SHIFT;
     }
     color_printk(ORANGE,BLACK, "OS Can Used Total 2M PAGEs:%#010x=%010d\n", TotalMem, TotalMem);
+
     TotalMem = memory_management_struct.e820[memory_management_struct.e820_length].address
                + memory_management_struct.e820[memory_management_struct.e820_length].length;
     // bits map construction init
@@ -170,16 +169,12 @@ void init_memory() {
         }
     }
 
-    /////////////init address 0 to page struct 0; because the memory_management_struct.e820[0].type != 1
-
     memory_management_struct.pages_struct->zone_struct = memory_management_struct.zones_struct;
 
     memory_management_struct.pages_struct->PHY_address = 0UL;
     memory_management_struct.pages_struct->attribute = 0;
     memory_management_struct.pages_struct->reference_count = 0;
     memory_management_struct.pages_struct->age = 0;
-
-    /////////////
 
     memory_management_struct.zones_length = (memory_management_struct.zones_size * sizeof(struct Zone) + sizeof(long) -
                                              1) & (~(sizeof(long) - 1));
@@ -199,22 +194,21 @@ void init_memory() {
     ZONE_DMA_INDEX = 0; //need rewrite in the future
     ZONE_NORMAL_INDEX = 0; //need rewrite in the future
 
-    for (unsigned long i = 0; i < memory_management_struct.zones_size; i++) //need rewrite in the future
-    {
+    for (int i = 0; i < memory_management_struct.zones_size; i++) {
         struct Zone *z = memory_management_struct.zones_struct + i;
         color_printk(
             ORANGE,BLACK,
             "zone_start_address:%#018lx,zone_end_address:%#018lx,zone_length:%#018lx,pages_group:%#018lx,pages_length:%#018lx\n",
             z->zone_start_address, z->zone_end_address, z->zone_length, z->pages_group, z->pages_length);
 
-        if (z->zone_start_address == 0x100000000)
+        if (z->zone_start_address == 0x100000000) {
             ZONE_UNMAPED_INDEX = i;
+        }
     }
 
     memory_management_struct.end_of_struct =
             (unsigned long) ((unsigned long) memory_management_struct.zones_struct + memory_management_struct.
                              zones_length + sizeof(long) * 32) & (~(sizeof(long) - 1));
-    ////need a blank to separate memory_management_struct
 
     color_printk(
         ORANGE,BLACK, "start_code:%#018lx,end_code:%#018lx,end_data:%#018lx,end_brk:%#018lx,end_of_struct:%#018lx\n",
@@ -228,22 +222,16 @@ void init_memory() {
         page_init(memory_management_struct.pages_struct + j,PG_PTable_Maped | PG_Kernel_Init | PG_Active | PG_Kernel);
     }
 
-
     Global_CR3 = Get_gdt();
 
     color_printk(INDIGO,BLACK, "Global_CR3\t:%#018lx\n", Global_CR3);
     color_printk(INDIGO,BLACK, "*Global_CR3\t:%#018lx\n", *Phy_To_Virt(Global_CR3) & (~0xff));
     color_printk(PURPLE,BLACK, "**Global_CR3\t:%#018lx\n", *Phy_To_Virt(*Phy_To_Virt(Global_CR3) & (~0xff)) & (~0xff));
 
-
-    for (i = 0; i < 10; i++)
-        *(Phy_To_Virt(Global_CR3) + i) = 0UL;
-
     flush_tlb();
 }
 
-struct Page *alloc_pages(int zone_select, int number, unsigned long page_flags) {
-    int i;
+struct Page* alloc_pages(int zone_select, int number, unsigned long page_flags) {
     unsigned long page = 0;
 
     int zone_start = 0;
@@ -253,19 +241,16 @@ struct Page *alloc_pages(int zone_select, int number, unsigned long page_flags) 
         case ZONE_DMA:
             zone_start = 0;
             zone_end = ZONE_DMA_INDEX;
-
             break;
 
         case ZONE_NORMAL:
             zone_start = ZONE_DMA_INDEX;
             zone_end = ZONE_NORMAL_INDEX;
-
             break;
 
         case ZONE_UNMAPED:
             zone_start = ZONE_UNMAPED_INDEX;
             zone_end = memory_management_struct.zones_size - 1;
-
             break;
 
         default:
@@ -274,8 +259,8 @@ struct Page *alloc_pages(int zone_select, int number, unsigned long page_flags) 
             break;
     }
 
-    for (i = zone_start; i <= zone_end; i++) {
-        struct Zone *z;
+    for (int i = zone_start; i <= zone_end; i++) {
+        struct Zone* z;
         unsigned long j;
         unsigned long start, end, length;
         unsigned long tmp;
@@ -309,10 +294,8 @@ struct Page *alloc_pages(int zone_select, int number, unsigned long page_flags) 
             }
         }
     }
-
     return NULL;
 
 find_free_pages:
-
     return (struct Page *) (memory_management_struct.pages_struct + page);
 }

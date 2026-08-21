@@ -13,6 +13,7 @@
 void Start_Kernel(void) {
     // 字符串打印
     init_print();
+    color_printk(RED,BLACK, "print init succ\n");
 
     // 编码一个TSS段选择子给TR寄存器 指向GDT表的10号表项目
     load_TR(10);
@@ -24,13 +25,13 @@ void Start_Kernel(void) {
     sys_vector_init();
 
     // 物理内存布局
-    color_printk(RED,BLACK, "memory init \n");
+    color_printk(RED,BLACK, "memory init\n");
     init_memory();
 
-    color_printk(RED,BLACK,"interrupt init \n");
+    color_printk(RED,BLACK,"interrupt init\n");
 	init_interrupt();
 
-    color_printk(RED,BLACK,"task_init \n");
+    color_printk(RED,BLACK,"task init\n");
 	task_init();
 
     while (1);

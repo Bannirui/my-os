@@ -31,15 +31,15 @@ struct thread_struct init_thread =
 
 #define MAX_SYSTEM_CALL_NR 128
 
-typedef unsigned long (*system_call_t)(struct pt_regs *regs);
+typedef unsigned long (*system_call_t)(struct pt_regs* regs);
 
-unsigned long no_system_call(struct pt_regs *regs) {
+unsigned long no_system_call(struct pt_regs* regs) {
     color_printk(RED,BLACK, "no_system_call is calling,NR:%#04x\n", regs->rax);
     return -1;
 }
 
 // 系统调用处理函数 系统调用向量号是1
-unsigned long sys_printf(struct pt_regs *regs) {
+unsigned long sys_printf(struct pt_regs* regs) {
     color_printk(BLACK,WHITE, (char *) regs->rdi);
     return 1;
 }
@@ -71,11 +71,15 @@ struct tss_struct init_tss[NR_CPUS] = {[0 ... NR_CPUS - 1] = INIT_TSS};
 void user_level_function() {
     long ret = 0;
     char string[] = "Hello World!\n";
-
-    __asm__ __volatile__ ( "leaq	sysexit_return_address(%%rip),	%%rdx	\n\t"
-        "movq	%%rsp,	%%rcx		\n\t"
+    // 约束"0"(1)把rax设置成了1
+    // "D"(string)把rdi设置成了字符串地址
+    // 然后sysenter进入了entry.S的system_call
+    __asm__ __volatile__ ( ".intel_syntax noprefix	\n\t"
+        "lea	rdx,	[rip + sysexit_return_address]	\n\t"
+        "mov	rcx,	rsp		\n\t"
         "sysenter			\n\t"
         "sysexit_return_address:	\n\t"
+        ".att_syntax prefix	\n\t"
         :"=a"(ret):"0"(1),"D"(string):"memory");
     while (1);
 }
@@ -86,7 +90,7 @@ void user_level_function() {
  */
 unsigned long do_execve(struct pt_regs *regs) {
     regs->rdx = 0x800000; //RIP
-    regs->rcx = 0xa00000; //RSP
+    regs->rcx = 0x9ff000; //RSP
     regs->rax = 1;
     regs->ds = 0;
     regs->es = 0;
@@ -107,10 +111,12 @@ unsigned long init(unsigned long arg) {
     regs = (struct pt_regs *) current->thread->rsp;
     // 系统还没有应用程序 现在的init依然是个内核线程 执行execve系统调用API 可使init内核线程执行新的程序 进而转变为应用程序
     // 调用execve系统调用API的处理函数do_exceve 借助push指令将程序的返回地址压入栈 采用jmp指令调用函数do_execve
-    __asm__ __volatile__ ( "movq	%1,	%%rsp	\n\t"
-        "pushq	%2		\n\t"
-        "jmp	do_execve	\n\t"
-        ::"D"(regs),"m"(current->thread->rsp),"m"(current->thread->rip):"memory");
+    __asm__ __volatile__ ( ".intel_syntax noprefix	\n\t"
+        "mov	rsp,	%1		\n\t"
+        "push	%2			\n\t"
+        "jmp	do_execve		\n\t"
+        ".att_syntax prefix	\n\t"
+        ::"D"(regs),"r"(current->thread->rsp),"r"(current->thread->rip):"memory");
 
     return 1;
 }
@@ -170,32 +176,34 @@ unsigned long system_call_function(struct pt_regs *regs) {
 
 extern void kernel_thread_func(void);
 __asm__ (
-    "kernel_thread_func:	\n\t"
-    "	popq	%r15	\n\t"
-    "	popq	%r14	\n\t"
-    "	popq	%r13	\n\t"
-    "	popq	%r12	\n\t"
-    "	popq	%r11	\n\t"
-    "	popq	%r10	\n\t"
-    "	popq	%r9	\n\t"
-    "	popq	%r8	\n\t"
-    "	popq	%rbx	\n\t"
-    "	popq	%rcx	\n\t"
-    "	popq	%rdx	\n\t"
-    "	popq	%rsi	\n\t"
-    "	popq	%rdi	\n\t"
-    "	popq	%rbp	\n\t"
-    "	popq	%rax	\n\t"
-    "	movq	%rax,	%ds	\n\t"
-    "	popq	%rax		\n\t"
-    "	movq	%rax,	%es	\n\t"
-    "	popq	%rax		\n\t"
-    "	addq	$0x38,	%rsp	\n\t"
+    ".intel_syntax noprefix		\n\t"
+    "kernel_thread_func:		\n\t"
+    "	pop	r15	\n\t"
+    "	pop	r14	\n\t"
+    "	pop	r13	\n\t"
+    "	pop	r12	\n\t"
+    "	pop	r11	\n\t"
+    "	pop	r10	\n\t"
+    "	pop	r9	\n\t"
+    "	pop	r8	\n\t"
+    "	pop	rbx	\n\t"
+    "	pop	rcx	\n\t"
+    "	pop	rdx	\n\t"
+    "	pop	rsi	\n\t"
+    "	pop	rdi	\n\t"
+    "	pop	rbp	\n\t"
+    "	pop	rax	\n\t"
+    "	mov	ds,	rax	\n\t"
+    "	pop	rax		\n\t"
+    "	mov	es,	rax	\n\t"
+    "	pop	rax		\n\t"
+    "	add	rsp,	0x38	\n\t"
     /////////////////////////////////
-    "	movq	%rdx,	%rdi	\n\t"
-    "	callq	*%rbx		\n\t"
-    "	movq	%rax,	%rdi	\n\t"
-    "	callq	do_exit		\n\t"
+    "	mov	rdi,	rdx	\n\t"
+    "	call	rbx		\n\t"
+    "	mov	rdi,	rax	\n\t"
+    "	call	do_exit		\n\t"
+    ".att_syntax prefix		\n\t"
 );
 
 int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigned long flags) {
@@ -221,11 +229,11 @@ void __switch_to(struct task_struct *prev, struct task_struct *next) {
     set_tss64(init_tss[0].rsp0, init_tss[0].rsp1, init_tss[0].rsp2, init_tss[0].ist1, init_tss[0].ist2,
               init_tss[0].ist3, init_tss[0].ist4, init_tss[0].ist5, init_tss[0].ist6, init_tss[0].ist7);
 
-    __asm__ __volatile__("movq	%%fs,	%0 \n\t":"=a"(prev->thread->fs));
-    __asm__ __volatile__("movq	%%gs,	%0 \n\t":"=a"(prev->thread->gs));
+    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	%0,	fs	\n\t"".att_syntax prefix	\n\t":"=a"(prev->thread->fs));
+    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	%0,	gs	\n\t"".att_syntax prefix	\n\t":"=a"(prev->thread->gs));
 
-    __asm__ __volatile__("movq	%0,	%%fs \n\t"::"a"(next->thread->fs));
-    __asm__ __volatile__("movq	%0,	%%gs \n\t"::"a"(next->thread->gs));
+    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	fs,	%0	\n\t"".att_syntax prefix	\n\t"::"a"(next->thread->fs));
+    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	gs,	%0	\n\t"".att_syntax prefix	\n\t"::"a"(next->thread->gs));
 
     color_printk(WHITE,BLACK, "prev->thread->rsp0:%#018lx\n", prev->thread->rsp0);
     color_printk(WHITE,BLACK, "next->thread->rsp0:%#018lx\n", next->thread->rsp0);

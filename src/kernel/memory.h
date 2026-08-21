@@ -256,7 +256,7 @@ unsigned long page_clean(struct Page *page);
 
 void init_memory();
 
-struct Page *alloc_pages(int zone_select, int number, unsigned long page_flags);
+struct Page* alloc_pages(int zone_select, int number, unsigned long page_flags);
 
 #define	flush_tlb_one(addr)	\
 	__asm__ __volatile__	(".intel_syntax noprefix\n\t"	\

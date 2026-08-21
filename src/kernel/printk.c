@@ -3,6 +3,7 @@
 #include "lib.h"
 #include "font.h"
 #include "linkage.h"
+#include "memory.h"
 
 // 用来收vsprintf解析出来的格式化字符串结果
 char buf[4096] = {0};
@@ -40,7 +41,8 @@ void init_print() {
     Pos.XCharSize = 8;
     Pos.YCharSize = 16;
     Pos.FB_addr = (int *) QEMU_VGA_ADDR; // 帧缓冲区地址
-    Pos.FB_length = (Pos.XResolution * Pos.YResolution * 4); // 缓冲区多少字节 32位像素 1像素占4字节
+    // 缓冲区多少字节 32位像素 1像素占4字节
+	Pos.FB_length = (Pos.XResolution * Pos.YResolution * 4 + PAGE_4K_SIZE - 1) & PAGE_4K_MASK;
 }
 
 void putchar(unsigned int *fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor,

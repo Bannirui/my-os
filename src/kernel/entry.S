@@ -67,39 +67,39 @@ ENTRY(ret_from_intr)
 ENTRY(system_call)
     // 把sti指令插入到system_call的入口处 当sysenter指令执行完毕后立即能中断 以允许处理器再次接收中断请求信号
 	sti
-	sub	rsp,	0x38
-	cld;
+	sub	rsp, 0x38
+	cld
+    // 把用户态的rax=1压栈
+	push rax
+	mov	rax, es
+	push rax
+	mov	rax, ds
+	push rax
+	xor	rax, rax
+	push rbp
+	push rdi
+	push rsi
+	push rdx
+	push rcx
+	push rbx
+	push r8
+	push r9
+	push r10
+	push r11
+	push r12
+	push r13
+	push r14
+	push r15
+	mov	rdx, 0x10
+	mov	ds,	rdx
+	mov	es,	rdx
+	mov	rdi, rsp
 
-	push	rax;
-	mov	rax,	es;
-	push	rax;
-	mov	rax,	ds;
-	push	rax;
-	xor	rax,	rax;
-	push	rbp;
-	push	rdi;
-	push	rsi;
-	push	rdx;
-	push	rcx;
-	push	rbx;
-	push	r8;
-	push	r9;
-	push	r10;
-	push	r11;
-	push	r12;
-	push	r13;
-	push	r14;
-	push	r15;
-	mov	rdx,	0x10;
-	mov	ds,	rdx;
-	mov	es,	rdx;
-	mov	rdi,	rsp
-
-	call	system_call_function
+	call system_call_function
 
 // 系统调用返回
 ENTRY(ret_system_call)
-	mov	[rsp + 0x80],	rax
+	mov	[rsp + 0x80], rax
 	pop	r15
 	pop	r14
 	pop	r13
@@ -119,207 +119,205 @@ ENTRY(ret_system_call)
 	pop	rax
 	mov	es,	rax
 	pop	rax
-	add	rsp,	0x38
+	add	rsp, 0x38
 	sysexitq
 
 ENTRY(divide_error)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_divide_error]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_divide_error]
+	xchg [rsp],	rax
 
 error_code:
-	push	rax
-	mov	rax,	es
-	push	rax
-	mov	rax,	ds
-	push	rax
-	xor	rax,	rax
+	push rax
+	mov	rax, es
+	push rax
+	mov	rax, ds
+	push rax
+	xor	rax, rax
 
-	push	rbp
-	push	rdi
-	push	rsi
-	push	rdx
-	push	rcx
-	push	rbx
-	push	r8
-	push	r9
-	push	r10
-	push	r11
-	push	r12
-	push	r13
-	push	r14
-	push	r15
+	push rbp
+	push rdi
+	push rsi
+	push rdx
+	push rcx
+	push rbx
+	push r8
+	push r9
+	push r10
+	push r11
+	push r12
+	push r13
+	push r14
+	push r15
 
 	cld
-	mov	rsi,	[rsp + ERRCODE]
-	mov	rdx,	[rsp + FUNC]
+	mov	rsi, [rsp + ERRCODE]
+	mov	rdx, [rsp + FUNC]
 
-	mov	rdi,	0x10
+	mov	rdi, 0x10
 	mov	ds,	rdi
 	mov	es,	rdi
 
-	mov	rdi,	rsp
-	////GET_CURRENT(%ebx)
+	mov	rdi, rsp
 
-	call	rdx
+	call rdx
 
 	jmp	ret_from_exception
 
 ENTRY(debug)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_debug]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_debug]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(nmi)
-	push	rax
-	cld;
-	push	rax;
+	push rax
+	cld
+	push rax
 
-	push	rax
-	mov	rax,	es
-	push	rax
-	mov	rax,	ds
-	push	rax
-	xor	rax,	rax
+	push rax
+	mov	rax, es
+	push rax
+	mov	rax, ds
+	push rax
+	xor	rax, rax
 
-	push	rbp;
-	push	rdi;
-	push	rsi;
-	push	rdx;
-	push	rcx;
-	push	rbx;
-	push	r8;
-	push	r9;
-	push	r10;
-	push	r11;
-	push	r12;
-	push	r13;
-	push	r14;
-	push	r15;
+	push rbp
+	push rdi
+	push rsi
+	push rdx
+	push rcx
+	push rbx
+	push r8
+	push r9
+	push r10
+	push r11
+	push r12
+	push r13
+	push r14
+	push r15
 
-	mov	rdx,	0x10;
-	mov	ds,	rdx;
-	mov	es,	rdx;
+	mov	rdx, 0x10
+	mov	ds,	rdx
+	mov	es,	rdx
 
-	mov	rsi,	0
-	mov	rdi,	rsp
+	mov	rsi, 0
+	mov	rdi, rsp
 
-	call	do_nmi
+	call do_nmi
 
 	jmp	RESTORE_ALL
 
 ENTRY(int3)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_int3]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_int3]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(overflow)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_overflow]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_overflow]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(bounds)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_bounds]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_bounds]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(undefined_opcode)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_undefined_opcode]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_undefined_opcode]
+	xchg [rsp],	rax
 	jmp	error_code
 
-ENTRY(dev_not_available)	/* need rewrite */
-	push	0
-	push	rax
-	lea	rax,	[rip + do_dev_not_available]
-	xchg	[rsp],	rax
+ENTRY(dev_not_available)
+	push 0
+	push rax
+	lea	rax, [rip + do_dev_not_available]
+	xchg [rsp],	rax
 	jmp	error_code
-
 
 ENTRY(double_fault)
-	push	rax
-	lea	rax,	[rip + do_double_fault]
-	xchg	[rsp],	rax
+	push rax
+	lea	rax, [rip + do_double_fault]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(coprocessor_segment_overrun)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_coprocessor_segment_overrun]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_coprocessor_segment_overrun]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(invalid_TSS)
-	push	rax
-	lea	rax,	[rip + do_invalid_TSS]
-	xchg	[rsp],	rax
+	push rax
+	lea	rax, [rip + do_invalid_TSS]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(segment_not_present)
-	push	rax
-	lea	rax,	[rip + do_segment_not_present]
-	xchg	[rsp],	rax
+	push rax
+	lea	rax, [rip + do_segment_not_present]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(stack_segment_fault)
-	push	rax
-	lea	rax,	[rip + do_stack_segment_fault]
-	xchg	[rsp],	rax
+	push rax
+	lea	rax, [rip + do_stack_segment_fault]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(general_protection)
-	push	rax
-	lea	rax,	[rip + do_general_protection]
-	xchg	[rsp],	rax
+	push rax
+	lea	rax, [rip + do_general_protection]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(page_fault)
-	push	rax
-	lea	rax,	[rip + do_page_fault]
-	xchg	[rsp],	rax
+	push rax
+	lea	rax, [rip + do_page_fault]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(x87_FPU_error)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_x87_FPU_error]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_x87_FPU_error]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(alignment_check)
-	push	rax
-	lea	rax,	[rip + do_alignment_check]
-	xchg	[rsp],	rax
+	push rax
+	lea	rax, [rip + do_alignment_check]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(machine_check)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_machine_check]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_machine_check]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(SIMD_exception)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_SIMD_exception]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_SIMD_exception]
+	xchg [rsp],	rax
 	jmp	error_code
 
 ENTRY(virtualization_exception)
-	push	0
-	push	rax
-	lea	rax,	[rip + do_virtualization_exception]
-	xchg	[rsp],	rax
+	push 0
+	push rax
+	lea	rax, [rip + do_virtualization_exception]
+	xchg [rsp],	rax
 	jmp	error_code

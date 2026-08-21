@@ -162,31 +162,36 @@ extern struct tss_struct init_tss[NR_CPUS];
 
 static inline struct task_struct* get_current() {
     struct task_struct *current = NULL;
-    __asm__ __volatile__ ("andq %%rsp,%0	\n\t":"=r"(current):"0"(~32767UL));
+    __asm__ __volatile__ (".intel_syntax noprefix	\n\t"
+                          "and	%0,	rsp		\n\t"
+                          ".att_syntax prefix	\n\t"
+                          :"=r"(current):"0"(~32767UL));
     return current;
 }
 
 #define current get_current()
 
 #define GET_CURRENT			\
-	"movq	%rsp,	%rbx	\n\t"	\
-	"andq	$-32768,%rbx	\n\t"
+	"mov	rbx,	rsp	\n\t"	\
+	"and	rbx,	-32768	\n\t"
 
 #define switch_to(prev,next)			\
 do{							\
-	__asm__ __volatile__ (	"pushq	%%rbp	\n\t"	\
-				"pushq	%%rax	\n\t"	\
-				"movq	%%rsp,	%0	\n\t"	\
-				"movq	%2,	%%rsp	\n\t"	\
-				"leaq	1f(%%rip),	%%rax	\n\t"	\
-				"movq	%%rax,	%1	\n\t"	\
-				"pushq	%3		\n\t"	\
-				"jmp	__switch_to	\n\t"	\
-				"1:	\n\t"	\
-				"popq	%%rax	\n\t"	\
-				"popq	%%rbp	\n\t"	\
-				:"=m"(prev->thread->rsp),"=m"(prev->thread->rip)		\
-				:"m"(next->thread->rsp),"m"(next->thread->rip),"D"(prev),"S"(next)	\
+	__asm__ __volatile__ (	".intel_syntax noprefix		\n\t"	\
+				"push	rbp		\n\t"	\
+				"push	rax		\n\t"	\
+				"mov	[%0],	rsp	\n\t"	\
+				"mov	rsp,	[%2]	\n\t"	\
+				"lea	rax,	[rip + 1f]	\n\t"	\
+				"mov	[%1],	rax	\n\t"	\
+				"push	qword ptr [%3]		\n\t"	\
+				"jmp	__switch_to		\n\t"	\
+				"1:				\n\t"	\
+				"pop	rax			\n\t"	\
+				"pop	rbp			\n\t"	\
+				".att_syntax prefix		\n\t"	\
+				::"r"(&prev->thread->rsp),"r"(&prev->thread->rip),	\
+				  "r"(&next->thread->rsp),"r"(&next->thread->rip),"D"(prev),"S"(next)	\
 				:"memory"		\
 				);			\
 }while(0)
