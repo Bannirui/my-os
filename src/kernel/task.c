@@ -75,12 +75,9 @@ void user_level_function() {
     // "D"(string)把rdi设置成了字符串地址
     // 然后sysenter进入了entry.S的system_call
     __asm__ __volatile__ ( ".intel_syntax noprefix	\n\t"
-        "lea	rdx,	[rip + sysexit_return_address]	\n\t"
-        "mov	rcx,	rsp		\n\t"
-        "sysenter			\n\t"
-        "sysexit_return_address:	\n\t"
+        "syscall				\n\t"
         ".att_syntax prefix	\n\t"
-        :"=a"(ret):"0"(1),"D"(string):"memory");
+        :"=a"(ret):"0"(1),"D"(string):"rcx","r11","memory");
     while (1);
 }
 
@@ -89,8 +86,11 @@ void user_level_function() {
  * @param regs 应用程序的执行环境
  */
 unsigned long do_execve(struct pt_regs *regs) {
-    regs->rdx = 0x800000; //RIP
-    regs->rcx = 0x9ff000; //RSP
+    regs->rdx = 0x800000; //RIP (sysexit约定 保留)
+    regs->rcx = 0x9ff000; //RSP (sysexit约定 保留)
+    regs->rip = 0x800000;      //RIP sysret用
+    regs->rsp = 0x9ff000;      //RSP sysret用
+    regs->rflags = (1 << 9);   //IF sysret用
     regs->rax = 1;
     regs->ds = 0;
     regs->es = 0;
@@ -259,9 +259,10 @@ void task_init() {
 
     init_mm.start_stack = _stack_start;
     // 由于IA32_SYSENTER_CS寄存器位于寄存器组0x174地址处 所以处理器只能借助WRMSR汇编指令才能向MSR寄存器写入数据
-    wrmsr(0x174,KERNEL_CS);
-    wrmsr(0x175,current->thread->rsp0);
-    wrmsr(0x176, (unsigned long) system_call);
+    wrmsr(0xC0000080, rdmsr(0xC0000080) | 1);         // EFER.SCE 使能syscall/sysret
+    wrmsr(0xC0000081, ((unsigned long)0x10 << 48) | ((unsigned long)0x08 << 32)); // STAR
+    wrmsr(0xC0000082, (unsigned long) system_call);   // LSTAR
+    wrmsr(0xC0000084, 0x200);                         // SFMASK 屏蔽IF system_call入口sti开启
     //	init_thread,init_tss
     set_tss64(init_thread.rsp0, init_tss[0].rsp1, init_tss[0].rsp2, init_tss[0].ist1, init_tss[0].ist2,
               init_tss[0].ist3, init_tss[0].ist4, init_tss[0].ist5, init_tss[0].ist6, init_tss[0].ist7);

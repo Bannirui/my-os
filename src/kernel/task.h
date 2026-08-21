@@ -11,8 +11,8 @@
 #define KERNEL_CS 	(0x08)
 #define	KERNEL_DS 	(0x10)
 
-#define	USER_CS		(0x28)
-#define USER_DS		(0x30)
+#define	USER_CS		(0x20)
+#define USER_DS		(0x18)
 
 #define CLONE_FS	(1 << 0)
 #define CLONE_FILES	(1 << 1)

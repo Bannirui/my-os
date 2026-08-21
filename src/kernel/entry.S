@@ -61,66 +61,84 @@ ret_from_exception:
 ENTRY(ret_from_intr)
 	jmp	RESTORE_ALL
 
+// 保存用户栈指针 供system_call入口切换到内核栈使用
+.section .bss
+.globl syscall_user_rsp
+syscall_user_rsp:
+    .quad 0
+.section .text
+
 // 系统调用API的接口
-// 当应用程序执行sysenter指令进入内核层时 会通过system_call模块保存应用程序的执行现场 随后使用call指令调用system_call_function函数 进而执行与之匹配的处理程序
-// 调用system_call_function函数时 system_call模块会将当前栈指针作为参数传递给system_call_function函数 此时的栈指针正指向pt_regs结构体的首地址
+// 当应用程序执行syscall指令进入内核层时 会通过system_call模块保存应用程序的执行现场 随后使用call指令调用system_call_function函数
+// syscall指令把用户返回地址保存到RCX 用户RFLAGS保存到R11 但不自动切换栈 需要手动保存用户RSP并切换到内核栈(TSS.rsp0)
 ENTRY(system_call)
-    // 把sti指令插入到system_call的入口处 当sysenter指令执行完毕后立即能中断 以允许处理器再次接收中断请求信号
-	sti
-	sub	rsp, 0x38
-	cld
-    // 把用户态的rax=1压栈
-	push rax
-	mov	rax, es
-	push rax
-	mov	rax, ds
-	push rax
-	xor	rax, rax
-	push rbp
-	push rdi
-	push rsi
-	push rdx
-	push rcx
-	push rbx
-	push r8
-	push r9
-	push r10
-	push r11
-	push r12
-	push r13
-	push r14
-	push r15
-	mov	rdx, 0x10
-	mov	ds,	rdx
-	mov	es,	rdx
-	mov	rdi, rsp
+    // 保存用户RSP 切换到内核栈(TSS.rsp0)
+    mov [rip + syscall_user_rsp], rsp
+    lea rdx, [rip + TSS64_Table]
+    mov rsp, [rdx + 4]          // TSS.rsp0 内核栈顶
+    sub rsp, 0x38               // 预留 func/errcode/rip/cs/rflags/rsp/ss 7个qword
+    // 填 rip/cs/rflags/rsp/ss
+    mov [rsp + 0x10], rcx       // rip = 用户返回地址
+    mov qword ptr [rsp + 0x18], 0x20   // cs = USER_CS
+    mov [rsp + 0x20], r11              // rflags = 用户RFLAGS
+    mov rdx, [rip + syscall_user_rsp]
+    mov [rsp + 0x28], rdx              // rsp = 用户RSP
+    mov qword ptr [rsp + 0x30], 0x18   // ss = USER_DS
+    sti
+    // 保存通用寄存器
+    push rax                    // rax(0x80) 系统调用号
+    mov rax, es
+    push rax                    // es(0x78)
+    mov rax, ds
+    push rax                    // ds(0x70)
+    push rbp                    // rbp(0x68)
+    push rdi                    // rdi(0x60)
+    push rsi                    // rsi(0x58)
+    push rdx                    // rdx(0x50)
+    push rcx                    // rcx(0x48)
+    push rbx                    // rbx(0x40)
+    push r8                     // r8(0x38)
+    push r9                     // r9(0x30)
+    push r10                    // r10(0x28)
+    push r11                    // r11(0x20)
+    push r12                    // r12(0x18)
+    push r13                    // r13(0x10)
+    push r14                    // r14(0x08)
+    push r15                    // r15(0x00)
+    mov rdx, 0x10
+    mov ds, rdx
+    mov es, rdx
+    mov rdi, rsp
 
-	call system_call_function
+    call system_call_function
 
-// 系统调用返回
+// 系统调用返回 sysretq要求RCX=用户返回地址 R11=用户RFLAGS RSP=用户栈 CS/SS由STAR决定
 ENTRY(ret_system_call)
-	mov	[rsp + 0x80], rax
-	pop	r15
-	pop	r14
-	pop	r13
-	pop	r12
-	pop	r11
-	pop	r10
-	pop	r9
-	pop	r8
-	pop	rbx
-	pop	rcx
-	pop	rdx
-	pop	rsi
-	pop	rdi
-	pop	rbp
-	pop	rax
-	mov	ds,	rax
-	pop	rax
-	mov	es,	rax
-	pop	rax
-	add	rsp, 0x38
-	sysexitq
+    mov [rsp + 0x80], rax       // 保存返回值到 regs->rax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbx
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rbp
+    pop rax
+    mov ds, rax
+    pop rax
+    mov es, rax
+    pop rax
+    // rsp现在指向0x88(func) [rsp+0x10]=rip [rsp+0x20]=rflags [rsp+0x28]=用户rsp
+    mov rcx, [rsp + 0x10]       // rcx = 用户返回地址
+    mov r11, [rsp + 0x20]       // r11 = 用户rflags
+    mov rsp, [rsp + 0x28]       // rsp = 用户栈
+    sysretq
 
 ENTRY(divide_error)
 	push 0
