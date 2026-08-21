@@ -51,7 +51,8 @@ entry64:
     mov es, rax
     mov gs, rax
     mov ss, rax
-    mov rsp, 0xffff800000007e00  // 上面临时设置了栈在7e00 在平坦模型下低地址空间将来都是划分给用户程序的 现在正式把内核的栈设置成对应的逻辑地址 内核空间的划分是在64位高半区 内核的物理起始地址是0x100000 映射的逻辑地址是0xffff800000000000 所以现在栈的物理地址是0x7e00映射的逻辑地址就是0xffff800000007e00
+    // 内核一进入到64位模式就切到init_task_union的内核栈上
+    mov rsp, [rip + _stack_start]
 
 // 内核启动初期非常脆弱 不具备异常处理能力 IDT的初始化模块将ignore_int模块作为所有异常的处理程序
 // 把IDT表的256个表项全部填成指向ignore_int的中断门描述符
@@ -250,13 +251,14 @@ __PDPTE: // page directory pointer table 二层页表 512项 二层页从物理�
 .org 0x3000
 __PDE: // page directory 三层页表 512项 三层页表从0x103_000开始 占1M
 // 三层页表项的低12位属性0x83对应二进制是0000_1000_0011 PS=1表示三层页表项表达的是2MB 2MB大页 不需要4层页表了
-    .quad 0x000087 // 抹掉低12位 表达2MB物理地址[0...0x001FFFFF]
-    .quad 0x200087 // 抹掉低12位 表达2MB物理地址[0x00200000...0x003FFFFF]
-    .quad 0x400087 // 抹掉低12位 表达2MB物理地址[0x00400000...0x005FFFFF]
-    .quad 0x600087 // 抹掉低12位 表达2MB物理地址[0x00600000...0x007FFFFF]
-    .quad 0x800087 // [0x800000...0x009FFFFF]
+// 映射物理内存 0~128MB(64个2MB大页 恒等映射) 这样alloc_pages分配的物理内存都能通过高半区访问
+    .set i, 0
+    .rept 64
+    .quad (i * 0x200000) + 0x87
+    .set i, i + 1
+    .endr
     // 启动qemu后info pci看到BAR0: 32 bit prefetchable memory at 0xfd000000 [0xfdffffff]
-    // 查到显存的物理地址是0xfd000000 把这个
+    // 查到显存的物理地址是0xfd000000 映射到虚拟地址0x8000000(PDE[64]) 对应的虚拟地址是0xffff8000008000000
     .quad 0xfd000087 // [0xfd000000...0xfd1fffff]
     .quad 0xfd200087 // [0xfd200000...0xfd3fffff]
     .quad 0xfd400087 // [0xfd400000...0xfd5fffff]
@@ -265,7 +267,7 @@ __PDE: // page directory 三层页表 512项 三层页表从0x103_000开始 占1
     .quad 0xfda00087 // [0xfda00000...0xfdbfffff]
     .quad 0xfdc00087 // [0xfdc00000...0xfddfffff]
     .quad 0xfde00087 // [0xfde00000...0xfdffffff]
-    .fill 499,8,0 // 伪指令.fill将数值0填充到剩余的499个页表项里面
+    .fill 440,8,0 // 伪指令.fill将数值0填充到剩余的页表项里面
 // 在三层页表中用2MB大页表达了3600G的物理内存
 
 // 数据段 把全局描述符表GDT结构 中断描述符表IDT结构 任务状态段TSS结构都放在内核程序的数据段内

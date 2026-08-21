@@ -177,6 +177,7 @@ unsigned long system_call_function(struct pt_regs *regs) {
 extern void kernel_thread_func(void);
 __asm__ (
     ".intel_syntax noprefix		\n\t"
+    ".globl kernel_thread_func		\n\t"
     "kernel_thread_func:		\n\t"
     "	pop	r15	\n\t"
     "	pop	r14	\n\t"

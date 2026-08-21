@@ -14,7 +14,7 @@ static struct Position Pos;
 #define WIDTH 1440
 #define HEIGHT 900
 
-#define QEMU_VGA_ADDR 0xffff800000a00000; // qemu显存的虚拟地址
+#define QEMU_VGA_ADDR 0xffff800008000000; // qemu显存的虚拟地址
 
 void init_print() {
     // 关于虚拟地址映射的物理地址

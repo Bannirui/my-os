@@ -33,8 +33,8 @@ SECTIONS
 		*(.rodata)
 		_erodata = .;
 	}
-
-	. = ALIGN(8);
+    # 在反推任务指针的时候用rsp&~32767 要求init_task_union落在32KB边界
+	. = ALIGN(32768);
 	.data.init_task : { *(.data.init_task) }
 
 	.bss :
