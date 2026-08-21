@@ -211,6 +211,7 @@ int_msg:
     .asciz "Unknown interrupt or fault at RIP\n"
 
 // 内核初始栈指针 栈顶=init_task_union起始+32K(STACK_SIZE)
+// 全局变量_stack_start记录着系统第一个进程的内核层栈基地址/
 ENTRY(_stack_start)
 	.quad	init_task_union + 32768
 

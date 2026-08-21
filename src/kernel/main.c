@@ -7,6 +7,7 @@
 #include "trap.h"
 #include "memory.h"
 #include "interrupt.h"
+#include "task.h"
 
 // 没有返回地址 一旦进入就死循环
 void Start_Kernel(void) {
@@ -28,6 +29,9 @@ void Start_Kernel(void) {
 
     color_printk(RED,BLACK,"interrupt init \n");
 	init_interrupt();
+
+    color_printk(RED,BLACK,"task_init \n");
+	task_init();
 
     while (1);
 }

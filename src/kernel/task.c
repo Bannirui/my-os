@@ -11,6 +11,26 @@
 #include "linkage.h"
 #include "gate.h"
 
+struct mm_struct init_mm = {0};
+
+struct thread_struct init_thread =
+{
+	// 全局变量_stack_start保存的值跟这个地方rsp0成员变量的值 是一样的 都指向了系统第一个进程的内核层栈基地址
+    .rsp0 = (unsigned long) (init_task_union.stack + STACK_SIZE / sizeof(unsigned long)),
+    .rsp = (unsigned long) (init_task_union.stack + STACK_SIZE / sizeof(unsigned long)),
+    .fs = KERNEL_DS,
+    .gs = KERNEL_DS,
+    .cr2 = 0,
+    .trap_nr = 0,
+    .error_code = 0
+};
+
+union task_union init_task_union __attribute__((__section__ (".data.init_task"))) = {INIT_TASK(init_task_union.task)};
+
+struct task_struct *init_task[NR_CPUS] = {&init_task_union.task, 0};
+
+struct tss_struct init_tss[NR_CPUS] = {[0 ... NR_CPUS - 1] = INIT_TSS};
+
 unsigned long init(unsigned long arg) {
     color_printk(RED,BLACK, "init task is running,arg:%#018lx\n", arg);
 

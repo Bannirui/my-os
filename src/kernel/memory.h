@@ -10,6 +10,17 @@
 extern struct Global_Memory_Descriptor memory_management_struct;
 extern unsigned long* Global_CR3;
 
+// 这几个变量声明后会被放在kernel.lds的链接脚本中的指定地址处
+extern char _text;
+extern char _etext;
+extern char _data;
+extern char _edata;
+extern char _rodata;
+extern char _erodata;
+extern char _bss;
+extern char _ebss;
+extern char _end;
+
 // 可用物理内存页数通常间接描述了操作系统可以使用的物理内存数 这些页必须按照页大小进行物理地址对齐
 // 页表项个数 64位模式下每个页表项占8字节 每个页表大小4KB 那么页表项个数=4KB/8B=512
 #define PTRS_PER_PAGE	512

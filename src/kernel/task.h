@@ -21,69 +21,81 @@
 // stack size 32K
 #define STACK_SIZE 32768
 
-extern char _text;
-extern char _etext;
-extern char _data;
-extern char _edata;
-extern char _rodata;
-extern char _erodata;
-extern char _bss;
-extern char _ebss;
-extern char _end;
-
 extern unsigned long _stack_start;
 
 extern void ret_from_intr();
 
-#define TASK_RUNNING		(1 << 0)
-#define TASK_INTERRUPTIBLE	(1 << 1)
-#define	TASK_UNINTERRUPTIBLE	(1 << 2)
-#define	TASK_ZOMBIE		(1 << 3)
-#define	TASK_STOPPED		(1 << 4)
+// 进程状态
+// 运行态
+#define TASK_RUNNING		 (1 << 0)
+// 可中断
+#define TASK_INTERRUPTIBLE	 (1 << 1)
+#define	TASK_UNINTERRUPTIBLE (1 << 2)
+#define	TASK_ZOMBIE		     (1 << 3)
+// 停止态
+#define	TASK_STOPPED		 (1 << 4)
 
+// 内存空间分布描述了进程的页表结构和各程序段信息
 struct mm_struct {
-    pml4t_t *pgd; //page table point
-
+	// 内存页表
+    pml4t_t* pgd;
+	// 代码段空间
     unsigned long start_code, end_code;
+	// 数据段空间
     unsigned long start_data, end_data;
+	// 只读数据段空间
     unsigned long start_rodata, end_rodata;
+	// 动态内存分配区 堆区域
     unsigned long start_brk, end_brk;
+	// 应用层栈基地址
     unsigned long start_stack;
 };
 
+// 每当进程发生调度切换时 都必须将寄存器的值保存起来 以备再次执行时使用 将这些数据保存在结构体里面
 struct thread_struct {
-    unsigned long rsp0; //in tss
-
+	// 内核层栈基地址
+    unsigned long rsp0;
+	// 内核层代码指针
     unsigned long rip;
+	// 内核层当前栈指针
     unsigned long rsp;
-
+	// FS段寄存器
     unsigned long fs;
+	// GS段寄存器
     unsigned long gs;
-
+	// CR2控制寄存器
     unsigned long cr2;
+	// 产生异常的异常号
     unsigned long trap_nr;
+	// 异常的错误码
     unsigned long error_code;
 };
 
+// 进程标志 进程 线程 内核线程
 #define PF_KTHREAD	(1 << 0)
 
 struct task_struct {
+	// 双链表 连接各个进程控制结构体
     struct List list;
+	// 进程状态
     volatile long state;
+	// 进程标志 进程 线程 内核线程
     unsigned long flags;
-
-    struct mm_struct *mm;
-    struct thread_struct *thread;
-
-    unsigned long addr_limit; /*0x0000,0000,0000,0000 - 0x0000,7fff,ffff,ffff user*/
-    /*0xffff,8000,0000,0000 - 0xffff,ffff,ffff,ffff kernel*/
-
+	// 内存空间分布结构体 记录内存页表和程序段信息
+    struct mm_struct* mm;
+	// 进程切换时保留的状态信息
+    struct thread_struct* thread;
+	// 进程地址空间范围
+	// 0x0000,0000,0000,0000 - 0x0000,7fff,ffff,ffff user
+    // 0xffff,8000,0000,0000 - 0xffff,ffff,ffff,ffff kernel
+    unsigned long addr_limit;
+	// 进程id号
     long pid;
-
+	// 进程可用时间片
     long counter;
-
+	// 进程持有的信号
     long signal;
-
+	// 进程优先级
     long priority;
 };
 
@@ -92,8 +104,8 @@ union task_union {
     unsigned long stack[STACK_SIZE / sizeof(unsigned long)];
 }__attribute__((aligned (8))); //8Bytes align
 
-struct mm_struct init_mm;
-struct thread_struct init_thread;
+extern struct mm_struct init_mm;
+extern struct thread_struct init_thread;
 
 #define INIT_TASK(tsk)	\
 {			\
@@ -108,22 +120,9 @@ struct thread_struct init_thread;
 	.priority = 0		\
 }
 
-union task_union init_task_union __attribute__((__section__ (".data.init_task"))) = {INIT_TASK(init_task_union.task)};
+extern union task_union init_task_union;
 
-struct task_struct *init_task[NR_CPUS] = {&init_task_union.task, 0};
-
-struct mm_struct init_mm = {0};
-
-struct thread_struct init_thread =
-{
-    .rsp0 = (unsigned long) (init_task_union.stack + STACK_SIZE / sizeof(unsigned long)),
-    .rsp = (unsigned long) (init_task_union.stack + STACK_SIZE / sizeof(unsigned long)),
-    .fs = KERNEL_DS,
-    .gs = KERNEL_DS,
-    .cr2 = 0,
-    .trap_nr = 0,
-    .error_code = 0
-};
+extern struct task_struct *init_task[NR_CPUS];
 
 struct tss_struct {
     unsigned int reserved0;
@@ -161,7 +160,7 @@ struct tss_struct {
 	.iomapbaseaddr = 0	\
 }
 
-struct tss_struct init_tss[NR_CPUS] = {[0 ... NR_CPUS - 1] = INIT_TSS};
+extern struct tss_struct init_tss[NR_CPUS];
 
 static inline struct task_struct* get_current() {
     struct task_struct *current = NULL;

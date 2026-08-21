@@ -4,6 +4,7 @@
 
 #pragma once
 
+// 系统调用API 必须在处理程序入口处保存程序的执行现场 在返回处恢复程序的执行现场 将执行现场数据组织成一个结构体
 struct pt_regs {
     unsigned long r15;
     unsigned long r14;
