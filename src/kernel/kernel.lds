@@ -15,17 +15,28 @@ SECTIONS
 	{
 		_text = .;
 		*(.text)
-
 		_etext = .;
 	}
+
 	. = ALIGN(8);
+
 	.data :
 	{
 		_data = .;
 		*(.data)
-		
 		_edata = .;
 	}
+
+	.rodata :
+	{
+		_rodata = .;
+		*(.rodata)
+		_erodata = .;
+	}
+
+	. = ALIGN(8);
+	.data.init_task : { *(.data.init_task) }
+
 	.bss :
 	{
 		_bss = .;

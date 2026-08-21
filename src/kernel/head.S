@@ -3,6 +3,8 @@
 // 内核头程序就是内核程序中的一小段汇编代码
 // 在链接的时候把0xffff800000000000+0x100000设计成了内核程序的线性地址
 
+#include "linkage.h"
+
 // intel代码风格
 .intel_syntax noprefix
 .section .text
@@ -207,6 +209,10 @@ Loop:
 
 int_msg:
     .asciz "Unknown interrupt or fault at RIP\n"
+
+// 内核初始栈指针 栈顶=init_task_union起始+32K(STACK_SIZE)
+ENTRY(_stack_start)
+	.quad	init_task_union + 32768
 
 // 为操作系统创建和初始化页表及页表项
 .align 8 // 在64位IA-32e长模式下 页表被分为4个等级 每个页表项是8字节 所以用align将对齐标准设置为8字节

@@ -6,6 +6,10 @@
 
 #include "lib.h"
 
+// 其他文件要用
+extern struct Global_Memory_Descriptor memory_management_struct;
+extern unsigned long* Global_CR3;
+
 // 可用物理内存页数通常间接描述了操作系统可以使用的物理内存数 这些页必须按照页大小进行物理地址对齐
 // 页表项个数 64位模式下每个页表项占8字节 每个页表大小4KB 那么页表项个数=4KB/8B=512
 #define PTRS_PER_PAGE	512
@@ -90,7 +94,6 @@
 
 //7,2,1,0
 #define	PAGE_USER_Page		(PAGE_PS  | PAGE_U_S | PAGE_R_W | PAGE_Present)
-
 
 typedef struct {
     unsigned long pml4t;

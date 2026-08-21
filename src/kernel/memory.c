@@ -6,7 +6,8 @@
 #include "lib.h"
 #include "printk.h"
 
-static unsigned long *Global_CR3 = NULL;
+unsigned long* Global_CR3 = NULL;
+
 static int ZONE_DMA_INDEX = 0;
 static int ZONE_NORMAL_INDEX = 0; //low 1GB RAM ,was mapped in pagetable
 static int ZONE_UNMAPED_INDEX = 0; //above 1GB RAM,unmapped in pagetable
@@ -247,16 +248,6 @@ void init_memory() {
 
     flush_tlb();
 }
-
-/*
-
-	number: number < 64
-
-	zone_select: zone select from dma , mapped in  pagetable , unmapped in pagetable
-
-	page_flags: struct Page flages
-
-*/
 
 struct Page *alloc_pages(int zone_select, int number, unsigned long page_flags) {
     int i;
