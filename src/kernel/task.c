@@ -38,6 +38,7 @@ unsigned long no_system_call(struct pt_regs *regs) {
     return -1;
 }
 
+// 系统调用处理函数 系统调用向量号是1
 unsigned long sys_printf(struct pt_regs *regs) {
     color_printk(BLACK,WHITE, (char *) regs->rdi);
     return 1;
