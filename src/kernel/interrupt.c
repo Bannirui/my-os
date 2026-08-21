@@ -131,8 +131,8 @@ void init_interrupt() {
     io_out8(0xa1, 0x01);
 
     //8259A-M/S	OCW1
-    io_out8(0x21, 0x00);
-    io_out8(0xa1, 0x00);
+    io_out8(0x21, 0xfd);
+    io_out8(0xa1, 0xff);
 
     sti();
 }
