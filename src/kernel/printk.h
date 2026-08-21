@@ -50,8 +50,7 @@ struct Position {
     unsigned long FB_length;
 };
 
-// 这里只是声明 不分配存储 多个文件都要用到这个全局变量
-extern struct Position Pos;
+void init_print();
 
 /**
  * 通过帧缓冲区打印在屏幕上

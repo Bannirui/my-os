@@ -236,8 +236,6 @@ struct Zone {
     unsigned long total_pages_link;
 };
 
-extern struct Global_Memory_Descriptor memory_management_struct;
-
 unsigned long page_init(struct Page *page, unsigned long flags);
 
 unsigned long page_clean(struct Page *page);

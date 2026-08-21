@@ -11,6 +11,14 @@ static int ZONE_DMA_INDEX = 0;
 static int ZONE_NORMAL_INDEX = 0; //low 1GB RAM ,was mapped in pagetable
 static int ZONE_UNMAPED_INDEX = 0; //above 1GB RAM,unmapped in pagetable
 
+// 这几个变量声明后会被放在kernel.lds的链接脚本中的指定地址处
+extern char _text;
+extern char _etext;
+extern char _edata;
+extern char _end;
+
+struct Global_Memory_Descriptor memory_management_struct = {{0}, 0};
+
 unsigned long page_init(struct Page *page, unsigned long flags) {
     if (!page->attribute) {
         *(memory_management_struct.bits_map + ((page->PHY_address >> PAGE_2M_SHIFT) >> 6)) |= 1UL << (
@@ -60,6 +68,11 @@ unsigned long page_clean(struct Page *page) {
 
 
 void init_memory() {
+    memory_management_struct.start_code = (unsigned long) &_text;
+    memory_management_struct.end_code = (unsigned long) &_etext;
+    memory_management_struct.end_data = (unsigned long) &_edata;
+    memory_management_struct.end_brk = (unsigned long) &_end;
+
     unsigned long TotalMem = 0;
     color_printk(
         BLUE,BLACK,

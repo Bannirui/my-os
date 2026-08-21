@@ -8,45 +8,12 @@
 #include "memory.h"
 #include "interrupt.h"
 
-#define WIDTH 1440
-#define HEIGHT 900
-
-#define QEMU_VGA_ADDR 0xffff800000a00000; // qemu显存的虚拟地址
-
-// 这几个变量声明后会被放在kernel.lds的链接脚本中的指定地址处
-extern char _text;
-extern char _etext;
-extern char _edata;
-extern char _end;
-
-struct Global_Memory_Descriptor memory_management_struct = {{0}, 0};
-
-void init_print() {
-    // 关于虚拟地址映射的物理地址
-    // 1 0xffff_8000_00a0_0000这个虚拟地址的有效地址位是低48位0x8000_00a0_0000
-    // 1111 1111 1111 1111 (1000 0000 0)(000 0000 00)(00 0000 101)(0 0000 0000) (0000 0000 0000)
-    // 2 把48位分成5个部分
-    //   顶层页表的索引9位 1_0000_0000=0x100=256 顶层页表的索引是256
-    //   2层页表的索引9位 000000000=0x0=0 二层页表的索引是0
-    //   3层页表的索引9位 000000101=0x5=5 三层页表的索引是5
-    //   4层页表的索引9位 000000000=0x0=0 四层页表的索引是0 2MB大页的时候就不走四层了
-    //   页内偏移12位 0x0=0 页内偏移是0
-    // 3 在内核头里面定义了 cr3寄存器中存着PML4的基址 是个物理地址 从cr3寄存器中读出来0x10_1000
-    // 4 在顶层页表找到页表项地址0x10_1000 偏移256的地址=0x10_1000+8*256=0x10_1800 这个页表项里面存放着0x10_2007
-    // 5 抹掉0x10_2007的低12位 找到2层页表地址0x10_2000 偏移0的地址 还是0x10_2000 这个页表项里面存放着0x10_3003
-    // 6 0x10_3003抹掉它的低12位后物理地址是0x10_3000 找到这个物理地址是3层页表项 3层页表的偏移是5拿到的3层页表表项里面存着0xfd00_0083
-    // 7 0xfd00_0083的低12位0x83标志位PS=1 表示3层页表用的大页2MB 没有4层页表的事情了 这个表项表达的物理地址区间是[0xfd00_0000...0xfd1f_ffff]
-    // 8 页内偏移是0 所以最终的物理地址是0xfd00_0000 这个物理地址就是qemu的显存地址
-
-    // 打印字符串
-    Pos.XResolution = WIDTH;
-    Pos.YResolution = HEIGHT;
-    Pos.XPosition = 0;
-    Pos.YPosition = 0;
-    Pos.XCharSize = 8;
-    Pos.YCharSize = 16;
-    Pos.FB_addr = (int *) QEMU_VGA_ADDR; // 帧缓冲区地址
-    Pos.FB_length = (Pos.XResolution * Pos.YResolution * 4); // 缓冲区多少字节 32位像素 1像素占4字节
+void init_tss() {
+    // 编码一个TSS段选择子给TR寄存器 指向GDT表的第8项
+    load_TR(8);
+    // 配置TSS段内的各个RSP和IST项
+    set_tss64(0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00,
+              0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00);
 }
 
 // 没有返回地址 一旦进入就死循环
@@ -54,21 +21,13 @@ void Start_Kernel(void) {
     // 字符串打印
     init_print();
 
-    // 编码一个TSS段选择子给TR寄存器 指向GDT表的第8项
-    load_TR(8);
-    // 配置TSS段内的各个RSP和IST项
-    set_tss64(0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00,
-              0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00);
+    init_tss();
 
     // 初始化IDT
     sys_vector_init();
-    color_printk(RED,BLACK, "memory init \n");
 
     // 物理内存布局
-    memory_management_struct.start_code = (unsigned long) &_text;
-    memory_management_struct.end_code = (unsigned long) &_etext;
-    memory_management_struct.end_data = (unsigned long) &_edata;
-    memory_management_struct.end_brk = (unsigned long) &_end;
+    color_printk(RED,BLACK, "memory init \n");
     init_memory();
 
     color_printk(RED,BLACK,"interrupt init \n");
