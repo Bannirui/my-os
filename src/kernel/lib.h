@@ -329,6 +329,7 @@ static inline unsigned long rdmsr(unsigned long address) {
     return (unsigned long) tmp0 << 32 | tmp1;
 }
 
+// 将WRMSR汇编指令封装
 static inline void wrmsr(unsigned long address, unsigned long value) {
     __asm__ __volatile__("wrmsr \n\t"::"d"(value >> 32),"a"(value & 0xffffffff),"c"(address):"memory");
 }

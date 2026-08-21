@@ -23,8 +23,6 @@
 
 extern unsigned long _stack_start;
 
-extern void ret_from_intr();
-
 // 进程状态
 // 运行态
 #define TASK_RUNNING		 (1 << 0)

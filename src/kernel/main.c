@@ -14,8 +14,8 @@ void Start_Kernel(void) {
     // 字符串打印
     init_print();
 
-    // 编码一个TSS段选择子给TR寄存器 指向GDT表的第8项
-    load_TR(8);
+    // 编码一个TSS段选择子给TR寄存器 指向GDT表的10号表项目
+    load_TR(10);
     // 配置TSS段内的各个RSP和IST项
     set_tss64(0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00,
               0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00, 0xffff800000007c00);
