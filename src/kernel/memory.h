@@ -250,33 +250,33 @@ struct Zone {
     unsigned long total_pages_link;
 };
 
-unsigned long page_init(struct Page *page, unsigned long flags);
+unsigned long page_init(struct Page* page, unsigned long flags);
 
-unsigned long page_clean(struct Page *page);
+unsigned long page_clean(struct Page* page);
 
 void init_memory();
 
 struct Page* alloc_pages(int zone_select, int number, unsigned long page_flags);
 
-#define	flush_tlb_one(addr)	\
-	__asm__ __volatile__	(".intel_syntax noprefix\n\t"	\
-				"invlpg	[%0]	\n\t"	\
-				".att_syntax prefix\n\t"	\
+#define	flush_tlb_one(addr)	                          \
+	__asm__ __volatile__(".intel_syntax noprefix\n\t" \
+				"invlpg	[%0]\n\t"	                  \
+				".att_syntax prefix\n\t"	          \
 				::"r"(addr):"memory")
 
-#define flush_tlb()						\
-do								\
-{								\
-	unsigned long	tmpreg;					\
-	__asm__ __volatile__ 	(				\
-				".intel_syntax noprefix\n\t"	\
-				"mov	%0,	cr3	\n\t"	\
-				"mov	cr3,	%0	\n\t"	\
-				".att_syntax prefix\n\t"	\
-				:"=r"(tmpreg)			\
-				:				\
-				:"memory"			\
-				);				\
+#define flush_tlb()						     \
+do								             \
+{								             \
+	unsigned long	tmpreg;					 \
+	__asm__ __volatile__ 	(				 \
+				".intel_syntax noprefix\n\t" \
+				"mov %0, cr3\n\t"	         \
+				"mov cr3, %0\n\t"	         \
+				".att_syntax prefix\n\t"	 \
+				:"=r"(tmpreg)			     \
+				:				             \
+				:"memory"			         \
+				);				             \
 }while(0)
 
 
@@ -284,7 +284,7 @@ static inline unsigned long *Get_gdt() {
     unsigned long *tmp;
     __asm__ __volatile__ (
         ".intel_syntax noprefix\n\t"
-        "mov	%0,	cr3	\n\t"
+        "mov %0, cr3\n\t"
         ".att_syntax prefix\n\t"
         :"=r"(tmp)
         :

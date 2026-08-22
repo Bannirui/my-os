@@ -12,49 +12,49 @@
 #include "ptrace.h"
 
 
-#define SAVE_ALL				\
-	"cld;			\n\t"		\
-	"push	rax;		\n\t"		\
-	"push	rax;		\n\t"		\
-	"mov	rax,	es;	\n\t"		\
-	"push	rax;		\n\t"		\
-	"mov	rax,	ds;	\n\t"		\
-	"push	rax;		\n\t"		\
-	"xor	rax,	rax;	\n\t"		\
-	"push	rbp;		\n\t"		\
-	"push	rdi;		\n\t"		\
-	"push	rsi;		\n\t"		\
-	"push	rdx;		\n\t"		\
-	"push	rcx;		\n\t"		\
-	"push	rbx;		\n\t"		\
-	"push	r8;		\n\t"		\
-	"push	r9;		\n\t"		\
-	"push	r10;		\n\t"		\
-	"push	r11;		\n\t"		\
-	"push	r12;		\n\t"		\
-	"push	r13;		\n\t"		\
-	"push	r14;		\n\t"		\
-	"push	r15;		\n\t"		\
-	"mov	rdx,	0x10;	\n\t"		\
-	"mov	ds,	rdx;	\n\t"		\
-	"mov	es,	rdx;	\n\t"
+#define SAVE_ALL		\
+	"cld\n\t"		    \
+	"push rax\n\t"		\
+	"push rax\n\t"		\
+	"mov rax, es\n\t"	\
+	"push rax\n\t"		\
+	"mov rax, ds\n\t"	\
+	"push rax\n\t"		\
+	"xor rax, rax\n\t"	\
+	"push rbp\n\t"		\
+	"push rdi\n\t"		\
+	"push rsi\n\t"		\
+	"push rdx\n\t"		\
+	"push rcx\n\t"		\
+	"push rbx\n\t"		\
+	"push r8\n\t"	    \
+	"push r9\n\t"       \
+	"push r10\n\t"		\
+	"push r11\n\t"		\
+	"push r12\n\t"		\
+	"push r13\n\t"		\
+	"push r14\n\t"		\
+	"push r15\n\t"		\
+	"mov rdx, 0x10\n\t" \
+	"mov ds, rdx\n\t"   \
+	"mov es, rdx\n\t"
 
 #define IRQ_NAME2(nr) nr##_interrupt(void)
 #define IRQ_NAME(nr) IRQ_NAME2(IRQ##nr)
 
 
-#define Build_IRQ(nr)							\
-void IRQ_NAME(nr);						\
-__asm__ (	SYMBOL_NAME_STR(IRQ)#nr"_interrupt:		\n\t"	\
-			".intel_syntax noprefix			\n\t"	\
-			"push	0				\n\t"	\
-			SAVE_ALL					\
-			"mov	rdi,	rsp			\n\t"	\
-			"lea	rax,	[rip + ret_from_intr]	\n\t"	\
-			"push	rax				\n\t"	\
-			"mov	rsi,	"#nr"			\n\t"	\
-			"jmp	do_IRQ			\n\t"	\
-			".att_syntax prefix			\n\t");
+#define Build_IRQ(nr)							     \
+void IRQ_NAME(nr);						             \
+__asm__ (	SYMBOL_NAME_STR(IRQ)#nr"_interrupt:\n\t" \
+			".intel_syntax noprefix\n\t"             \
+			"push 0\n\t"                             \
+			SAVE_ALL                                 \
+			"mov rdi, rsp\n\t"                       \
+			"lea rax, [rip + ret_from_intr]\n\t"     \
+			"push rax\n\t"                           \
+			"mov rsi, "#nr"\n\t"                     \
+			"jmp do_IRQ\n\t"                         \
+			".att_syntax prefix\n\t");
 
 
 Build_IRQ(0x20)
@@ -82,8 +82,7 @@ Build_IRQ(0x35)
 Build_IRQ(0x36)
 Build_IRQ(0x37)
 
-void (*interrupt[24])(void) =
-{
+void (*interrupt[24])(void) = {
     IRQ0x20_interrupt,
     IRQ0x21_interrupt,
     IRQ0x22_interrupt,
@@ -137,11 +136,9 @@ void init_interrupt() {
     sti();
 }
 
-void do_IRQ(struct pt_regs *regs, unsigned long nr) //regs,nr
-{
-    unsigned char x;
+void do_IRQ(struct pt_regs *regs, unsigned long nr) {
     color_printk(RED,BLACK, "do_IRQ:%#018lx\t", nr);
-    x = io_in8(0x60);
+    unsigned char x = io_in8(0x60);
     color_printk(RED,BLACK, "key code:%#018lx\t", x);
     io_out8(0x20, 0x20);
     color_printk(RED,BLACK, "regs:%#018lx\t<RIP:%#018lx\tRSP:%#018lx>\n", regs, regs->rip, regs->rsp);

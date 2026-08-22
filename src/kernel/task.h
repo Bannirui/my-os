@@ -24,6 +24,11 @@
 // stack size 32K
 #define STACK_SIZE 32768
 
+extern unsigned long kallsyms_addresses[] __attribute__((weak));
+extern long kallsyms_syms_num __attribute__((weak));
+extern long kallsyms_index[] __attribute__((weak));
+extern char* kallsyms_names __attribute__((weak));
+
 extern unsigned long _stack_start;
 
 // 进程状态

@@ -9,24 +9,22 @@
 .intel_syntax noprefix
 .section .text
 
-// 伪指令.globl相当于extern的作用 被修饰的东西可以被外部程序引用或访问
-.globl _start
 // GAS编译器将_start作为程序默认的起始位置
-_start:
-    // 准备重建GDT和IDT结构 设置数据段选择子
-    mov ax, 0x0010       // 0x0010的二进制是(0000 0000 0001 0)000高13位是2 设置数据段选择子 对应的GDT表索引是2
+ENTRY(_start)
+    // 设置数据段选择子 GDT的表项2号是内核64位数据段
+    // index=(10)b TI=(00)b RPL=(0)b selector=index<<3 | TI<<2 | RPL = (1,0000)b=0x10
+    mov ax, 0x10 // 选择子 内核64位数据段
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov ss, ax
-    mov esp, 0x7e00    // 栈倒扣在这个位置往下增长 把栈临时设置在这个位置过渡一下
+    mov esp, 0x7e00 // 栈倒扣在这个位置往下增长 把栈临时设置在这个位置过渡一下
 
     lgdt [rip + GDT_POINTER]  // rip是相对寻址 取GDT_POINTER的内容作为GDTR GDTR会拿到那个地方10字节的信息 等于是知道了GDT表的起始和表长
     // 此时执行完lgdt GDT表已经就绪 但是CS还是旧的 没有更新 需要搭配一个far jump或者far call来刷新cs里面的代码段选择子
-
     lidt [rip + IDT_POINTER]
     // 再次设置数据段寄存器并把栈切换为64位风格的寄存器
-    mov ax, 0x10
+    mov ax, 0x10 // 选择子 内核64位数据段
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -34,37 +32,43 @@ _start:
     mov ss, ax
     mov rsp, 0x7e00
 
-    mov rax, 0x101000   // 内核的程序被loader加载到内存时->缓存到0x7e00->搬运到0x100000 下面布局PML的时候把PML4的相对内核头程序偏移定为1000 所以PML4的物理地址就是101000 告诉cr3寄存器PML4的物理地址在哪
+    // 内核的程序被loader加载到内存时->缓存到0x7e00->搬运到0x100000 下面布局PML的时候把PML4的相对内核头程序偏移定为1000 所以PML4的物理地址就是101000 告诉cr3寄存器PML4的物理地址在哪
+    mov rax, 0x101000
     mov cr3, rax
-    mov rax, [rip + switch_seg]  // 把switch_seg这个64位目标地址读到rax寄存器
-    push 0x08            // GDT表代码段的选择子入栈
-    push rax             // switch_seg地址入栈
-    lretq                // 栈顶依次是switch_seg地址 段选择子 lretq指令等价于pop rip; pop cs; 一下子就把cs和ip都刷新了 完成了64位的切换
+    // 把switch_seg这个64位目标地址读到rax寄存器
+    mov rax, [rip + switch_seg]
+    // GDT表项1号 内核64位代码段的选择子入栈
+    push 0x08
+    // switch_seg地址入栈
+    push rax
+    // 现在栈顶依次是switch_seg地址 和 GDT表项1号的内核64位代码段选择子 lretq指令等价于pop rip; pop cs; 一下子就把cs和ip都刷新了 完成了64位的切换
+    lretq
 
 // 执行到这的时候已经是在64位模式下了
 switch_seg:
     .quad entry64
 
 entry64:
+    // GDT表项1号的选在子 内核64位代码段
     mov rax, 0x10
     mov ds, rax
     mov es, rax
     mov gs, rax
     mov ss, rax
     // 内核一进入到64位模式就切到init_task_union的内核栈上
-    mov rsp, [rip + _stack_start]
+    mov rsp, [rip+_stack_start]
 
 // 内核启动初期非常脆弱 不具备异常处理能力 IDT的初始化模块将ignore_int模块作为所有异常的处理程序
 // 把IDT表的256个表项全部填成指向ignore_int的中断门描述符
 // 拼一个64位的中断门描述符 64位中断门描述符共16字节 分低8字节 高8字节两部分 rax拼低8字节 rdx拼高8字节
-// 字节     位              含义
-// 低8字节 0-15  偏移量offset[15:0]
-// 低8字节 16-31 段选择子
-// 低8字节 32-39 IST+保留(设置成0)
-// 低8字节 40-47 属性0x8e含义是 P=1 DPL=0 Type=0xe
-// 低8字节 48-63 偏移量offset[31:16]
-// 高8字节 64-95 偏移量offset[63:32]
-// 高8字节 96-127 保留(设置成0)
+//   字节     位        含义
+// 高8字节 [127:96] 保留(设置成0)
+// 高8字节 [95:64]  偏移量offset[63:32]
+// 低8字节 [63:48]  偏移量offset[31:16]
+// 低8字节 [47:40]  属性0x8e含义是 P=1 DPL=0 Type=0xe
+// 低8字节 [39:32]  IST+保留(设置成0)
+// 低8字节 [31:16]  段选择子
+// 低8字节 [15:0]   偏移量offset[15:0]
 setup_IDT:
     // ignore_int符号的运行时地址计算出来 RIP相对寻址 LEA(load effective address)取有效地址 算出来ignore_int的运行时地址作为完整的64位offset存到rdx
     lea rdx, [rip + ignore_int]
@@ -121,18 +125,19 @@ setup_TSS64:
     // rax[15:0]设置成limit
     add rax, 103 // TSS表用13个8字节的0定义了 总共就是104个字节 段界限=104-1=103 也可以用16进制0x67表示
     // 写入GDT GDT表项是8字节一个 TSS描述符是16字节 写到
-    lea rdi, [rip + GDT_Table]
-    mov [rdi + 80], rax // TSS的低8字节写到GDT表项10号上
+    lea rdi, [rip+GDT_Table]
+    mov [rdi+80], rax // TSS的低8字节写到GDT表项10号上
     shr rdx, 32 // TSS的低8字节
-    mov [rdi + 88], rdx // 放到GDT表项11号上
+    mov [rdi+88], rdx // 放到GDT表项11号上
 
-    mov rax, [rip + go_to_kernel]
-    push 0x08           // 物理代码段选择子
-    push rax            // go_to_kernel标号地址
-    lretq               // pop rip; pop cs; 刷新cs和ip完成执行跳转 也就是在64位长模式下跳转到内核主程序去执行
+    mov rax, [rip+go_to_kernel]
+    push 0x08 // GDT表项1号的选择子 内核64位代码段
+    push rax // go_to_kernel标号地址
+    // lretq指令相当于执行了pop rip; pop cs; 刷新cs和ip完成执行跳转 也就是在64位长模式下跳转到内核主程序去执行
+    lretq
 
 go_to_kernel:
-    .quad Start_Kernel  // 内核头程序跳到内核主程序Start_Kernel函数中
+    .quad Start_Kernel // 内核头程序跳到内核主程序Start_Kernel函数中
 
 // 负责异常处理的函数 打印个信息 然后死循环挂着
 ignore_int:
@@ -159,12 +164,12 @@ ignore_int:
     push rax
     mov rax, ds
     push rax
-    // 切换数据段 把DS和ES段寄存器设置成内核数据段 因为中断可能发生在用户态(ds es是用户数据段) 这里要访问内核的字符串和调用内核函数 必须要用内核段
+    // 切换数据段 切换到GDT表项2号的内核64位数据段 把DS和ES段寄存器设置成内核数据段 因为中断可能发生在用户态(ds es是用户数据段) 这里要访问内核的字符串和调用内核函数 必须要用内核段
     mov rax, 0x10
     mov ds, rax
     mov es, rax
     // 要打印的字符串的地址
-    lea rax, [rip + int_msg]
+    lea rax, [rip+int_msg]
     // 压栈 下面会平衡掉
     push rax
     // rdx=fmt
@@ -211,13 +216,16 @@ Loop:
 int_msg:
     .asciz "Unknown interrupt or fault at RIP\n"
 
-// 内核初始栈指针 栈顶=init_task_union起始+32K(STACK_SIZE)
-// 全局变量_stack_start记录着系统第一个进程的内核层栈基地址/
+// 内核初始栈指针 栈顶=init_task_union起始+32K(STACK_SIZE) 全局变量_stack_start记录着系统第一个进程的内核层栈基地址
 ENTRY(_stack_start)
 	.quad	init_task_union + 32768
 
 // 为操作系统创建和初始化页表及页表项
-.align 8 // 在64位IA-32e长模式下 页表被分为4个等级 每个页表项是8字节 所以用align将对齐标准设置为8字节
+// 在64位IA-32e长模式下 页表被分为4个等级 页表容量都是4KB 每个页表项是8字节 所以用align将对齐标准设置为8字节
+// 页表起始地址按照8B对其
+.align 8
+// 伪指令.org指定页表的起始地址 固定各个页表的起始地址 相对内核头程序起始地址偏移多少的地方
+.org 0x1000
 
 // 页表项的格式
 //   位     含义
@@ -231,8 +239,6 @@ ENTRY(_stack_start)
 // [2]     U 用户态可访问
 // [1]     R 可写
 // [0]     P 是否存在
-// 伪指令.org指定页表的起始地址 固定各个页表的起始地址 相对内核头程序起始地址偏移多少的地方
-.org 0x1000
 // 内核代码被放在物理地址0x10_0000上 偏移是0x1000 那么PML4就是在物理地址0x10_1000上
 // 在64位的IA-32e模式下 页表最高可分为4个等级 每个页表项由原来的4B扩展至8B 而且分页机制除了提供4KB大小的物理页外 还提供2MB和1GB大小的物理页
 // page map level 4
@@ -244,12 +250,14 @@ __PML4E:
     .fill 255,8,0
 // 在顶层页表中2个页目录指向同一个二层页表的原因是保证CPU模式切换过程中 内核只需要低地址+高半区 没必要全覆盖
 .org 0x2000
-__PDPTE: // page directory pointer table 二层页表 512项 二层页从物理地址0x102_000开始 占1M
+// page directory pointer table 二层页表 512项 二层页从物理地址0x102_000开始 占1M
+__PDPTE:
     .quad 0x103007 // 在顶层页表中低地址和高半区的页表项物理地址都是这个 抹掉低12位就是0x103_000这个物理地址找到3层页表 U/S=1允许用户态访问
     .fill 511,8,0
 
 .org 0x3000
-__PDE: // page directory 三层页表 512项 三层页表从0x103_000开始 占1M
+// page directory 三层页表 512项 三层页表从0x103_000开始 占1M
+__PDE:
 // 三层页表项的低12位属性0x83对应二进制是0000_1000_0011 PS=1表示三层页表项表达的是2MB 2MB大页 不需要4层页表了
 // 映射物理内存 0~128MB(64个2MB大页 恒等映射) 这样alloc_pages分配的物理内存都能通过高半区访问
     .set i, 0
@@ -317,8 +325,8 @@ GDT_END:
 // 跟32位下的GDT表结构一样 区别在表地址 32位下地址4字节 64位下地址8字节
 // 要告诉gdtr 10字节 2字节是表长(GDT表字节数-1)和8字节的GDT表地址
 GDT_POINTER:
-GDT_LIMIT: .word GDT_END - GDT_Table - 1 // 2字节
-GDT_BASE: .quad GDT_Table // 4字节
+GDT_LIMIT: .word GDT_END - GDT_Table - 1 // GDT表的表长 也就是0-based的偏移 占2字节
+GDT_BASE: .quad GDT_Table // GDT表基址占4字节
 
 .globl IDT_Table
 // IDT表 表有256项 每个项占16字节 每个项是中断描述符
@@ -336,8 +344,8 @@ IDT_Table:
 IDT_END:
 
 IDT_POINTER:
-IDT_LIMIT: .word IDT_END - IDT_Table - 1
-IDT_BASE: .quad IDT_Table
+IDT_LIMIT: .word IDT_END - IDT_Table - 1 // IDT表的表长 也就是0-based的偏移 占2字节
+IDT_BASE: .quad IDT_Table // IDT表的基址占4字节
 
 // 在GDT表里面构造一个64位的TSS任务状态段描述符 用ltr加载到任务寄存器TR
 // TSS在64位模式下主要用于特权级切换时的栈RSP0和IST中段栈指针
@@ -358,5 +366,5 @@ TSS64_Table:
 TSS64_END:
 
 TSS64_POINTER:
-TSS64_LIMIT: .word TSS64_END - TSS64_Table - 1
-TSS64_BASE: .quad TSS64_Table
+TSS64_LIMIT: .word TSS64_END - TSS64_Table - 1 // TSS的表长 0-based的偏移占2字节
+TSS64_BASE: .quad TSS64_Table // TSS表的基址占4字节

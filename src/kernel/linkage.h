@@ -14,6 +14,7 @@
 
 #define SYMBOL_NAME_LABEL(X) X##:
 
-#define ENTRY(name) \
-    .global SYMBOL_NAME(name); \
+// 伪指令.globl相当于extern的作用 被修饰的东西可以被外部程序引用或访问
+#define ENTRY(name)           \
+    .globl SYMBOL_NAME(name); \
     SYMBOL_NAME_LABEL(name)

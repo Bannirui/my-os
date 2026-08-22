@@ -8,7 +8,6 @@
 #include "printk.h"
 #include "lib.h"
 #include "memory.h"
-#include "linkage.h"
 #include "gate.h"
 
 extern void system_call(void);
@@ -74,23 +73,22 @@ void user_level_function() {
     // 约束"0"(1)把rax设置成了1
     // "D"(string)把rdi设置成了字符串地址
     // 然后sysenter进入了entry.S的system_call
-    __asm__ __volatile__ ( ".intel_syntax noprefix	\n\t"
-        "syscall				\n\t"
-        ".att_syntax prefix	\n\t"
+    __asm__ __volatile__ ( ".intel_syntax noprefix\n\t"
+        "syscall\n\t"
+        ".att_syntax prefix\n\t"
         :"=a"(ret):"0"(1),"D"(string):"rcx","r11","memory");
     while (1);
 }
-
 
 /**
  * @param regs 应用程序的执行环境
  */
 unsigned long do_execve(struct pt_regs *regs) {
-    regs->rdx = 0x800000; //RIP (sysexit约定 保留)
-    regs->rcx = 0x9ff000; //RSP (sysexit约定 保留)
-    regs->rip = 0x800000;      //RIP sysret用
-    regs->rsp = 0x9ff000;      //RSP sysret用
-    regs->rflags = (1 << 9);   //IF sysret用
+    regs->rdx = 0x800000; // RIP (sysexit约定 保留)
+    regs->rcx = 0x9ff000; // RSP (sysexit约定 保留)
+    regs->rip = 0x800000; // RIP sysret用
+    regs->rsp = 0x9ff000; // RSP sysret用
+    regs->rflags = (1 << 9); // IF sysret用
     regs->rax = 1;
     regs->ds = 0;
     regs->es = 0;
@@ -111,11 +109,11 @@ unsigned long init(unsigned long arg) {
     regs = (struct pt_regs *) current->thread->rsp;
     // 系统还没有应用程序 现在的init依然是个内核线程 执行execve系统调用API 可使init内核线程执行新的程序 进而转变为应用程序
     // 调用execve系统调用API的处理函数do_exceve 借助push指令将程序的返回地址压入栈 采用jmp指令调用函数do_execve
-    __asm__ __volatile__ ( ".intel_syntax noprefix	\n\t"
-        "mov	rsp,	%1		\n\t"
-        "push	%2			\n\t"
-        "jmp	do_execve		\n\t"
-        ".att_syntax prefix	\n\t"
+    __asm__ __volatile__ ( ".intel_syntax noprefix\n\t"
+        "mov rsp, %1\n\t"
+        "push %2\n\t"
+        "jmp do_execve\n\t"
+        ".att_syntax prefix\n\t"
         ::"D"(regs),"r"(current->thread->rsp),"r"(current->thread->rip):"memory");
 
     return 1;
@@ -176,35 +174,34 @@ unsigned long system_call_function(struct pt_regs *regs) {
 
 extern void kernel_thread_func(void);
 __asm__ (
-    ".intel_syntax noprefix		\n\t"
-    ".globl kernel_thread_func		\n\t"
-    "kernel_thread_func:		\n\t"
-    "	pop	r15	\n\t"
-    "	pop	r14	\n\t"
-    "	pop	r13	\n\t"
-    "	pop	r12	\n\t"
-    "	pop	r11	\n\t"
-    "	pop	r10	\n\t"
-    "	pop	r9	\n\t"
-    "	pop	r8	\n\t"
-    "	pop	rbx	\n\t"
-    "	pop	rcx	\n\t"
-    "	pop	rdx	\n\t"
-    "	pop	rsi	\n\t"
-    "	pop	rdi	\n\t"
-    "	pop	rbp	\n\t"
-    "	pop	rax	\n\t"
-    "	mov	ds,	rax	\n\t"
-    "	pop	rax		\n\t"
-    "	mov	es,	rax	\n\t"
-    "	pop	rax		\n\t"
-    "	add	rsp,	0x38	\n\t"
-    /////////////////////////////////
-    "	mov	rdi,	rdx	\n\t"
-    "	call	rbx		\n\t"
-    "	mov	rdi,	rax	\n\t"
-    "	call	do_exit		\n\t"
-    ".att_syntax prefix		\n\t"
+    ".intel_syntax noprefix\n\t"
+    ".globl kernel_thread_func\n\t"
+    "kernel_thread_func:\n\t"
+    "   pop r15\n\t"
+    "   pop	r14\n\t"
+    "   pop	r13\n\t"
+    "   pop	r12\n\t"
+    "	pop	r11\n\t"
+    "	pop	r10\n\t"
+    "	pop	r9\n\t"
+    "	pop	r8\n\t"
+    "	pop	rbx\n\t"
+    "	pop	rcx\n\t"
+    "	pop	rdx\n\t"
+    "	pop	rsi\n\t"
+    "	pop	rdi\n\t"
+    "	pop	rbp\n\t"
+    "	pop	rax\n\t"
+    "	mov	ds,	rax\n\t"
+    "	pop	rax\n\t"
+    "	mov	es,	rax\n\t"
+    "	pop	rax\n\t"
+    "	add	rsp, 0x38\n\t"
+    "	mov	rdi, rdx\n\t"
+    "	call rbx\n\t"
+    "	mov	rdi, rax\n\t"
+    "	call do_exit\n\t"
+    ".att_syntax prefix\n\t"
 );
 
 int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigned long flags) {
@@ -230,11 +227,33 @@ void __switch_to(struct task_struct *prev, struct task_struct *next) {
     set_tss64(init_tss[0].rsp0, init_tss[0].rsp1, init_tss[0].rsp2, init_tss[0].ist1, init_tss[0].ist2,
               init_tss[0].ist3, init_tss[0].ist4, init_tss[0].ist5, init_tss[0].ist6, init_tss[0].ist7);
 
-    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	%0,	fs	\n\t"".att_syntax prefix	\n\t":"=a"(prev->thread->fs));
-    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	%0,	gs	\n\t"".att_syntax prefix	\n\t":"=a"(prev->thread->gs));
+    __asm__ __volatile__(
+        ".intel_syntax noprefix\n\t"
+        "mov %0, fs\n\t"
+        ".att_syntax prefix\n\t"
+        :
+        "=a"(prev->thread->fs));
 
-    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	fs,	%0	\n\t"".att_syntax prefix	\n\t"::"a"(next->thread->fs));
-    __asm__ __volatile__(".intel_syntax noprefix	\n\t""mov	gs,	%0	\n\t"".att_syntax prefix	\n\t"::"a"(next->thread->gs));
+    __asm__ __volatile__(
+        ".intel_syntax noprefix\n\t"
+        "mov %0,	gs\n\t"
+        ".att_syntax prefix\n\t"
+        :
+        "=a"(prev->thread->gs));
+
+    __asm__ __volatile__(
+        ".intel_syntax noprefix\n\t"
+        "mov fs, %0\n\t"
+        ".att_syntax prefix\n\t"
+        ::
+        "a"(next->thread->fs));
+
+    __asm__ __volatile__(
+        ".intel_syntax noprefix\n\t"
+        "mov gs, %0\n\t"
+        ".att_syntax prefix\n\t"
+        ::
+        "a"(next->thread->gs));
 
     color_printk(WHITE,BLACK, "prev->thread->rsp0:%#018lx\n", prev->thread->rsp0);
     color_printk(WHITE,BLACK, "next->thread->rsp0:%#018lx\n", next->thread->rsp0);

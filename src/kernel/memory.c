@@ -14,7 +14,7 @@ static int ZONE_UNMAPED_INDEX = 0; //above 1GB RAM,unmapped in pagetable
 
 struct Global_Memory_Descriptor memory_management_struct = {{0}, 0};
 
-unsigned long page_init(struct Page *page, unsigned long flags) {
+unsigned long page_init(struct Page* page, unsigned long flags) {
     if (!page->attribute) {
         *(memory_management_struct.bits_map + ((page->PHY_address >> PAGE_2M_SHIFT) >> 6)) |= 1UL << (
             page->PHY_address >> PAGE_2M_SHIFT) % 64;
@@ -36,7 +36,7 @@ unsigned long page_init(struct Page *page, unsigned long flags) {
     return 0;
 }
 
-unsigned long page_clean(struct Page *page) {
+unsigned long page_clean(struct Page* page) {
     if (!page->attribute) {
         page->attribute = 0;
     } else if ((page->attribute & PG_Referenced) || (page->attribute & PG_K_Share_To_U)) {
@@ -297,5 +297,5 @@ struct Page* alloc_pages(int zone_select, int number, unsigned long page_flags) 
     return NULL;
 
 find_free_pages:
-    return (struct Page *) (memory_management_struct.pages_struct + page);
+    return (struct Page*) (memory_management_struct.pages_struct + page);
 }

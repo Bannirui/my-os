@@ -95,7 +95,6 @@ static inline void set_intr_gate(unsigned int n, unsigned char ist, void *addr) 
     _set_gate(IDT_Table + n, 0x8E, ist, addr); //P,DPL=0,TYPE=E
 }
 
-
 /**
  * 陷阱门
  * @param n IDT表的第几个表项 也就是CPU拿着异常号会去找哪个IDT表项
@@ -105,7 +104,6 @@ static inline void set_intr_gate(unsigned int n, unsigned char ist, void *addr) 
 static inline void set_trap_gate(unsigned int n, unsigned char ist, void *addr) {
     _set_gate(IDT_Table + n, 0x8F, ist, addr); //P,DPL=0,TYPE=F
 }
-
 
 /**
  * 陷阱门 用户可调
@@ -117,7 +115,6 @@ static inline void set_system_gate(unsigned int n, unsigned char ist, void *addr
     _set_gate(IDT_Table + n, 0xEF, ist, addr); //P,DPL=3,TYPE=F
 }
 
-
 /**
  * 中断门 用户可调
  * @param n IDT表的第几个表项
@@ -128,7 +125,6 @@ static inline void set_system_intr_gate(unsigned int n, unsigned char ist, void 
 {
     _set_gate(IDT_Table + n, 0xEE, ist, addr); //P,DPL=3,TYPE=E
 }
-
 
 // 配置TSS段内的各个RSP和IST项
 static inline void set_tss64(unsigned long rsp0, unsigned long rsp1, unsigned long rsp2,
